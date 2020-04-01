@@ -1,0 +1,6 @@
+temp*
+trash*
+
+*.o
+*.exe
+*.out
