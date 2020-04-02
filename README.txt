@@ -1,0 +1,10 @@
+My solutions to the exercises in the book "The C Programming Language" (2nd edition) by Kernighan and Ritchie.
+
+1. A Tutorial Introduction (24/24)
+2. Types, Operators, and Expressions (10/10)
+3. Control Flow (6/6)
+4. Functions and Program Structure (14/14)
+5. Pointes and Arrays (6/20)
+6. Structures (0/6)
+7. Input and Output (0/9)
+8. The UNIX System Interface (0/8)
