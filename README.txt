@@ -1,4 +1,4 @@
-My solutions to the exercises in the book "The C Programming Language" (2nd edition) by Kernighan and Ritchie.
+My solutions to the exercises in the book "The C Programming Language" (2nd edition) by Brian Kernighan and Dennis Ritchie.
 
 1. A Tutorial Introduction (24/24)
 2. Types, Operators, and Expressions (10/10)
