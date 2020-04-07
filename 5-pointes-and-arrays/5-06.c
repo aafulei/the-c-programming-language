@@ -10,6 +10,19 @@
 
 #define ABS(x) (x > 0 ? x : -(x))
 
+int getline(char *p, int lim)
+{
+    int c;
+    char *b = p;
+
+    while (p-b < lim-1 && (c=getchar()) != EOF && c != '\n')
+        *p++ = c;
+    if (c == '\n')
+        *p++ = c;
+    *p++ = '\0';
+    return p-b;
+}
+
 /*  0. leading white spaces ignored
     1. optional + or - sign
     2. leading zeros ignored (e.g. 000123 is 123)
