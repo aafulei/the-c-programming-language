@@ -6,17 +6,15 @@
 #define BAD_REQUEST (void *)(-1)
 
 typedef long align_t;
-
 union header
 {
     struct
     {
         union header * next;
-        unsigned       size;    // in blocks, does not include header itself
+        unsigned       size;    // in units, does not include header itself
     } s;
     align_t _alignment;
 };
-
 typedef union header Header;
 
 void * malloc(unsigned req_bytes);
@@ -45,6 +43,7 @@ void * malloc(unsigned req_bytes)
             g_prev = p;
             return (void *)(q + 1);
         }
+        // tricky
         if (q->s.size > req_units) {
             unsigned diff = q->s.size - req_units;
             q->s.size = diff;
@@ -92,7 +91,7 @@ void free(void * ptr)
     }
     p->s.next = x;
     x->s.next = q;
-    // join if applicable (note: order matters)
+    // join adjacent blocks, must first do x,q and then p,x
     if (x + x->s.size + 1 == q) {
         x->s.size += q->s.size + 1;
         x->s.next = q->s.next;
