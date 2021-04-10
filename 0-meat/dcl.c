@@ -1,4 +1,9 @@
+// 21/04/10 = Sat
+
 // gcc dcl.c getch.c
+
+// Exercise 5-18. Make dcl recover from input errors.
+
 
 #include <ctype.h>
 #include <stdio.h>
@@ -6,9 +11,13 @@
 
 #define TOKEN_SIZE 100
 #define DERIVED_SIZE 1000
+#define OK 0
+#define ERR_MISSING_CLOSING_PARENTHESIS 1
+#define ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES 2
+#define ERR_SYNTAX_ERROR 3
 
-void dcl(void);
-void ddcl(void);
+int dcl(void);
+int ddcl(void);
 int  get_token_type(void);
 int  getch();
 int  ungetch(char);
@@ -20,35 +29,41 @@ char g_last_token[TOKEN_SIZE];
 int  g_last_token_type;
 enum { NAME, PARENTHESES, BRACKETS };
 
-void dcl(void)
+int dcl(void)
 {
     int num_stars = 0;
     while (get_token_type() == '*')
         ++num_stars;
-    ddcl();
+    int ret;
+    if ((ret = ddcl()) != OK)
+        return ret;
     while (num_stars-- > 0)
         strcat(g_derived, " pointer to");
+    return OK;
 }
 
-void ddcl(void)
+int ddcl(void)
 {
     if (g_last_token_type == '(') {
-        dcl();
-        if (g_last_token_type != ')')
-            printf("ddcl(): [error] missing )\n");
+        int ret;
+        if ((ret = dcl()) != OK)
+            return ret;
+        if (g_last_token_type != ')') {
+            return ERR_MISSING_CLOSING_PARENTHESIS;
+        }
     }
     else if (g_last_token_type == NAME) {
         strcpy(g_name, g_last_token);
     }
     else {
-        printf("ddcl(): [error] expect name or (dcl)\n");
+        return ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES;
     }
     while (1) {
-        int token_type = get_token_type();
-        if (token_type == PARENTHESES) {
+        get_token_type();
+        if (g_last_token_type == PARENTHESES) {
             strcat(g_derived, " function returning");
         }
-        else if (token_type == BRACKETS) {
+        else if (g_last_token_type == BRACKETS) {
             strcat(g_derived, " array");
             strcat(g_derived, g_last_token);
             strcat(g_derived, " of");
@@ -56,6 +71,7 @@ void ddcl(void)
         else
             break;
     }
+    return OK;
 }
 
 int get_token_type(void)
@@ -94,16 +110,42 @@ int get_token_type(void)
     return g_last_token_type;
 }
 
+void error_handle(int ret)
+{
+    switch (ret) {
+        case ERR_MISSING_CLOSING_PARENTHESIS:
+            printf("[error] missing closing parenthesis ')'\n");
+            break;
+        case ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES:
+            printf("[error] expect name or (dcl)\n");
+            break;
+        case ERR_SYNTAX_ERROR:
+            printf("[error] syntax error\n");
+            break;
+        default:
+            printf("[error] unknown error\n");
+            break;
+    }
+    // eat all remaining characters in the line
+    if (g_last_token_type != '\n') {
+        while (getch() != '\n')
+            ;
+    }
+}
+
+
 int main()
 {
     while (get_token_type() != EOF) {
         strcpy(g_primitive, g_last_token);
         g_derived[0] = '\0';
-        dcl();
-        if (g_last_token_type != '\n') {
-            printf("main(): [error] syntax error\n");
-        }
-        printf("%s: %s %s\n", g_name, g_derived, g_primitive);
+        int ret = dcl();
+        if (ret == OK && g_last_token_type != '\n')
+            ret = ERR_SYNTAX_ERROR;
+        if (ret == OK)
+            printf("%s: %s %s\n", g_name, g_derived, g_primitive);
+        else
+            error_handle(ret);
     }
     return 0;
 }
