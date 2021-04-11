@@ -133,7 +133,6 @@ void error_handle(int ret)
     }
 }
 
-
 int main()
 {
     while (get_token_type() != EOF) {

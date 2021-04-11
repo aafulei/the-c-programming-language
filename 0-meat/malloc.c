@@ -45,7 +45,7 @@ void * malloc(unsigned req_bytes)
             g_prev = p;
             return (void *)(q + 1);
         }
-        // tricky
+        // tricky: double headers - update old header, create a new header and return it
         if (q->s.size > req_units) {
             unsigned diff = q->s.size - req_units;
             q->s.size = diff;
