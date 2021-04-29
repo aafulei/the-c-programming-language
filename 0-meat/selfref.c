@@ -57,8 +57,7 @@ size_t strlen(char *s)
 
 int strcmp(char *a, char *b)
 {
-  int cmp;
-  while (1) {
+  for (int cmp; /* empty */; ++a, ++b) {
     switch ((*a != '\0') + (*b != '\0') * 2) {
       case 0:
         return 0;
@@ -69,11 +68,10 @@ int strcmp(char *a, char *b)
       case 3: {
         if ((cmp = *a - *b) != 0)
           return cmp;
-        break;
+        else
+          break;
       }
     }
-    ++a;
-    ++b;
   }
 }
 
