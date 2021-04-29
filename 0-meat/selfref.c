@@ -15,9 +15,7 @@ struct node
 
 struct node *talloc();
 void treeprint(struct node *);
-
 int getword(char *, int);
-
 size_t strlen(char *);
 int strcmp(char *, char *);
 char *strdup(char *);
