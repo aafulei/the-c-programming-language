@@ -79,6 +79,8 @@ Header * _req_from_os(unsigned req_units)
 // insert memory to free list
 void free(void * ptr)
 {
+    if (ptr == NULL)
+        return;
     Header * x = (Header *)(ptr) - 1;
     Header * p = g_prev;
     Header * q = g_prev->s.next;
