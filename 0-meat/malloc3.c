@@ -32,9 +32,9 @@ void *malloc(size_t nb)
       return q + 1;
     }
     if (q->size > nu + 1) {
-      size_t diff = q->size - nu - 1;
-      q->size = diff;
-      q += diff + 1;
+      size_t rest = q->size - (nu + 1);
+      q->size = rest;
+      q += rest + 1;
       q->size = nu;
       g_prev = p;
       return q + 1;
