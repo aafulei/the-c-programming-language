@@ -1,6 +1,7 @@
 temp*
 trash*
 
+.DS_Store
 *.o
 *.exe
 *.out
