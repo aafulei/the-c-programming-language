@@ -48,3 +48,8 @@ heap memory
 
 *That is, if you want a space for 4 `int`s, then you need to call `malloc(sizeof(int) * 4)` instead of just `malloc(4)`*
 
+`string.h`
+----------
+1. Did you notice that functions in `string.h` put `dest` in front of `src`?
+
+For example, `strcpy(p, q)` copies the contents from `q` to `p`, instead of the other way round.
