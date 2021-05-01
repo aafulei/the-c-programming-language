@@ -9,7 +9,13 @@ programming checklist
 
 carelessness
 ------------
-1. was it `.` or `->`?
+想当然
+
+1. Was it `.` or `->`?
+
+2. After writing the body for loop, did you forget the increment?
+
+3. Did you declare a function before calling it?
 
 string
 ------
