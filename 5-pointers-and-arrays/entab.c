@@ -77,7 +77,6 @@ void entab()
       putchar(c);
       ++i;
       if (c == '\n') {
-        ns = 0;
         i = 0;
         reset_next_stop();
       }
