@@ -17,6 +17,8 @@ carelessness
 
 3. Did you declare a function before calling it?
 
+4. Is it reading from stdin or reading from a string?
+
 string
 ------
 1. Did you reserve one extra space for the '\0'?
