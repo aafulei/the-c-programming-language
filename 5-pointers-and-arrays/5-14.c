@@ -13,30 +13,29 @@
 
 static char g_buffer[BUFSIZE];
 static char *g_next = g_buffer;
+static char *lineptr[MAXLINES];
 
-char *lineptr[MAXLINES];
+static int g_options = 0;
 
 int readlines(char *lineptr[], int nlines);
 void writelines(char *lineptr[], int nlines);
 
 void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
 int numcmp(const char *, const char *);
-int rnumcmp(const char *s, const char *t);
-int rstrcmp(const char *s, const char *t);
+int rstrcmp(const char *, const char *);
 
 int main(int argc, char *argv[])
 {
   int nlines;
-  int option = 0;
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] == '-')
       for (int j = 1; argv[i][j] != '\0'; ++j) {
         switch (argv[i][j]) {
           case 'n':
-            option |= NUMERIC;
+            g_options |= NUMERIC;
             break;
           case 'r':
-            option |= REVERSE;
+            g_options |= REVERSE;
             break;
           default:
             fprintf(stderr, "unknown option %c\n", argv[i][j]);
@@ -44,21 +43,15 @@ int main(int argc, char *argv[])
         }
       }
   }
-  fprintf(stderr, "numeric = %d, reverse = %d\n", option & NUMERIC,
-          option & REVERSE);
+  fprintf(stderr, "numeric = %d, reverse = %d\n", g_options & NUMERIC,
+          g_options & REVERSE);
   if ((nlines = readlines(lineptr, MAXLINES)) >= 0) {
     int (*fp)(const char *, const char *);
-    if (option & NUMERIC) {
-      if (option & REVERSE)
-        fp = rnumcmp;
-      else
-        fp = numcmp;
+    if (g_options & NUMERIC) {
+      fp = numcmp;
     }
     else {
-      if (option & REVERSE)
-        fp = rstrcmp;
-      else
-        fp = strcmp;
+      fp = rstrcmp;
     }
     qsort_((void **)lineptr, 0, nlines - 1, (int (*)(void *, void *))fp);
     writelines(lineptr, nlines);
@@ -100,17 +93,19 @@ int numcmp(const char *s, const char *t)
 {
   double a = atof(s);
   double b = atof(t);
-  return (a > b) - (a < b);
-}
-
-int rnumcmp(const char *s, const char *t)
-{
-  return numcmp(t, s);
+  int res = (a > b) - (a < b);
+  if (g_options & REVERSE)
+    return -res;
+  else
+    return res;
 }
 
 int rstrcmp(const char *s, const char *t)
 {
-  return strcmp(t, s);
+  if (g_options & REVERSE)
+    return strcmp(t, s);
+  else
+    return strcmp(s, t);
 }
 
 void *alloc(int nb)
