@@ -15,8 +15,6 @@ of fixed size. */
 #define MAX_LINES     50
 #define DEFAULT_LINES 10
 
-static int g_lines = DEFAULT_LINES;
-
 int getline_(char *line, int lim)
 {
   int c;
@@ -27,63 +25,48 @@ int getline_(char *line, int lim)
     ++i;
   }
   *line = '\0';
-  if (c == EOF)
-    return EOF;
-  else
-    return i;
+  return (c == EOF) ? EOF : i;
 }
 
 int main(int argc, char *argv[])
 {
-  if (argc == 2 && sscanf(argv[1], "-%d", &g_lines) != 1 || argc > 2) {
+  int num = DEFAULT_LINES;
+  if (argc == 2 && sscanf(argv[1], "-%d", &num) != 1 || argc > 2) {
     fprintf(stderr, "usage: tail -n\n");
     return 1;
   }
-  if (g_lines > MAX_LINES) {
-    g_lines = MAX_LINES;
-    fprintf(stderr, "warning: n too large, set to max possible at %d\n",
-            g_lines);
+  if (num == 0 || num > MAX_LINES) {
+    num = MAX_LINES;
+    fprintf(stderr, "warning: n out of range, set to max value %d\n", num);
   }
-  char **lines = malloc(g_lines * sizeof(char *));
+  char **lines = malloc(num * sizeof(char *));
   if (!lines) {
     fprintf(stderr, "malloc() on lines failed!\n");
     return 1;
   }
-
-  char **lineptr = lines;
-  char line[MAX_LEN + 1];
-  int len;
-  char *buffer = malloc(g_lines * (MAX_LEN + 1));
-  if (!buffer) {
-    fprintf(stderr, "malloc() on buffer failed!\n");
+  const size_t N = num * (MAX_LEN + 1);
+  char *buf = malloc(N);
+  if (!buf) {
+    fprintf(stderr, "malloc() on buf failed!\n");
     return 1;
   }
-  char *next = buffer;
+  int i = 0;
+  int j = 0;
   int n = 0;
-  while ((len = getline_(line, MAX_LEN)) != EOF) {
-    if (n < g_lines)
-      ++n;
-    strcpy(next, line);
-    *lineptr = next;
-    if (next + len + 1 > buffer + g_lines * (MAX_LEN + 1))
-      next = buffer;
-    else
-      next += len + 1;
-    ++lineptr;
-    if (lineptr == lines + g_lines)
-      lineptr = lines;
+  char line[MAX_LEN + 1];
+  for (int len; (len = getline_(line, MAX_LEN)) != EOF; ++n) {
+    strcpy(buf + j, line);
+    lines[i] = buf + j;
+    j += len + 1;
+    j *= (j < N);
+    i = (i + 1) % num;
   }
-
-  if (lineptr < lines + n)
-    lineptr = lineptr + (g_lines - n);
-  else
-    lineptr -= n;
-
+  if (n > num)
+    n = num;
+  i = (i + num - n) % num;
   while (n-- > 0) {
-    printf("%s\n", *lineptr);
-    ++lineptr;
-    if (lineptr == lines + g_lines)
-      lineptr = lines;
+    printf("%s\n", lines[i]);
+    i = (i + 1) % num;
   }
   return 0;
 }
