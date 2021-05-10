@@ -1,5 +1,3 @@
-// NOT FINISHED. JUST RUNABLE.
-
 /* Exercise 5-19. Modify undcl so that it does not add redundant parentheses to
  * declarations. */
 
@@ -75,15 +73,20 @@ int get_token_type()
 
 int main()
 {
-  int type;
+  int type, last_type;
   char temp[MAXTOKEN];
   while (get_token_type() != EOF) {
     strcpy(g_dcl, g_token);
     while ((type = get_token_type()) != '\n') {
-      if (type == PARENTHESES || type == BRACKETS)
+      if (type == PARENTHESES || type == BRACKETS) {
+        if (last_type == '*') {
+          sprintf(temp, "(%s)", g_dcl);
+          strcpy(g_dcl, temp);
+        }
         strcat(g_dcl, g_token);
+      }
       else if (type == '*') {
-        sprintf(temp, "(*%s)", g_dcl);
+        sprintf(temp, "*%s", g_dcl);
         strcpy(g_dcl, temp);
       }
       else if (type == NAME) {
@@ -93,6 +96,7 @@ int main()
       else {
         printf("invalid input at %s\n", g_token);
       }
+      last_type = type;
     }
     printf("%s\n", g_dcl);
   }
