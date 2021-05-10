@@ -18,7 +18,8 @@ void qsort(int *left, int *right)
   pivot = left;
   for (int *p = left + 1; p <= right; ++p) {
     if (*p < *left) {
-      swap(++pivot, p);
+      swap(pivot + 1, p);
+      ++pivot;
     }
   }
   swap(left, pivot);
