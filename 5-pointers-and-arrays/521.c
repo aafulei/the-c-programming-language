@@ -226,10 +226,11 @@ void error_handle(int res)
 
 int parse()
 {
-  // if (g_token_type == ')') {
-  //   strcat(g_dcl, "void");
-  //   return OK;
-  // }
+  get_token_type();
+  if (g_token_type == ')') {
+    strcat(g_dcl, "void");
+    return OK;
+  }
 
   char a_type[100];
   strcpy(a_type, g_token);
@@ -252,7 +253,7 @@ void clean()
 int main()
 {
   int res;
-  while (get_token_type() != EOF) {
+  while (1) {
     if ((res = parse()) != OK)
       error_handle(res);
     printf("%s: ", g_name);
