@@ -1,3 +1,5 @@
+// 21/05/10-12 = Mon-Wed
+
 /* Exercise 5-20. Expand dcl to handle declarations with function argument
  * types, qualifiers like const, and so on. */
 
@@ -149,14 +151,25 @@ int get_token_type()
 int dcl()
 {
   int res;
-  int ns = 0;
+  char stars[1000];
+  stars[0] = '\0';
+  int i = 0;
   while (get_token_type() == '*') {
-    ++ns;
+    stars[i++] = '*';
+    if (peek_token_type() == QUALIFIER) {
+      get_token_type();
+      stars[i++] = 'c';
+    }
   }
   if ((res = ddcl()) != OK)
     return res;
-  while (ns-- > 0)
-    strcat(g_dcl, "pointer to ");
+  while (i != 0) {
+    --i;
+    if (stars[i] == '*')
+      strcat(g_dcl, "pointer to ");
+    else
+      strcat(g_dcl, "const ");
+  }
   return res;
 }
 
