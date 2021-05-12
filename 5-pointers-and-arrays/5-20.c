@@ -1,21 +1,43 @@
-// work for a lot of cases
-// todo: void foo(int (*bar)(long))
-
 /* Exercise 5-20. Expand dcl to handle declarations with function argument
  * types, qualifiers like const, and so on. */
 
+// void (*foo(int, double (*)(long)))(float)
+// foo:  function of int and pointer to function of long returning double
+// returning pointer to function of float returning void
+
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAXSIZE 1000
 #define BUFSIZE 100
 
+#define ERR_UNCATEGORIZED                        -1
+#define OK                                        0
+#define ERR_MISSING_CLOSING_PARENTHESIS           1
+#define ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES     2
+#define ERR_SYNTAX_ERROR                          3
+#define ERR_PAR_MISSING_CLOSING_PARENTHESIS       4
+#define ERR_PAR_EXPECT_NAME_OR_DCL_IN_PARENTHESES 5
+#define ERR_PAR_SYNTAX_ERROR                      6
+#define ERR_NOT_IMPLEMENTED                       7
+
 static char g_buffer[BUFSIZE];
 static char *g_next = g_buffer;
 
 char g_token[100];
+enum { NAME, PARENTHESES, BRACKETS };
+int g_token_type;
+char g_name[100];
+char g_dcl[1000];
+char g_type[100];
+char g_par_name[100];
 
+int parse();
+int dcl();
+int ddcl();
+void clean();
 
 int getch()
 {
@@ -41,31 +63,44 @@ int ungetch(int c)
     return EOF;
 }
 
-#define OK                                        0
-#define ERR_MISSING_CLOSING_PARENTHESIS           1
-#define ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES     2
-#define ERR_SYNTAX_ERROR                          3
-#define ERR_PAR_MISSING_CLOSING_PARENTHESIS       4
-#define ERR_PAR_EXPECT_NAME_OR_DCL_IN_PARENTHESES 5
-#define ERR_PAR_SYNTAX_ERROR                      6
+enum { NONE, TYPE, VOID, QUALIFIER };
 
-enum { NAME, PARENTHESES, BRACKETS };
-int g_token_type;
-char g_name[100];
-char g_dcl[1000];
-char g_type[100];
-char g_par_type[100];
-char g_par_dcl[1000];
-char g_par_name[100];
-int g_paren_type = 0;
-
-int get_token_type();
-int dcl();
-int ddcl();
-void parse();
-int paraparse();
-int pdcl();
-int pddcl();
+int peek_token_type()
+{
+  char peeked[100];
+  peeked[0] = '\0';
+  char *p = peeked;
+  int c = getch();
+  int n = 1;
+  while (c == ' ' || c == '\t') {
+    c = getch();
+  }
+  if (isalpha(c)) {
+    for (*p++ = c; isalnum(c = getch()) || c == '_'; *p++ = c, ++n)
+      ;
+    *p = '\0';
+    ungetch(c);
+    int res;
+    if (strcmp(peeked, "const") == 0)
+      res = QUALIFIER;
+    else
+      res = TYPE;
+    char *q = peeked;
+    while (*q)
+      ++q;
+    for (--q; q >= peeked; --q)
+      ungetch(*q);
+    return res;
+  }
+  else if (c == ')') {
+    ungetch(c);
+    return VOID;
+  }
+  else {
+    ungetch(c);
+    return NONE;
+  }
+}
 
 int get_token_type()
 {
@@ -74,7 +109,8 @@ int get_token_type()
   while (c == ' ' || c == '\t')
     c = getch();
   if (c == '(') {
-    if (g_paren_type == 1) {
+    *p++ = c;
+    if (peek_token_type() != 0) {
       g_token_type = PARENTHESES;
     }
     else {
@@ -90,19 +126,28 @@ int get_token_type()
     for (*p++ = c; isalnum(c = getch()) || c == '_'; *p++ = c)
       ;
     ungetch(c);
-    g_token_type = NAME;
-    g_paren_type = 1;
+    if (strcmp(g_token, "const") == 0)
+      g_token_type = QUALIFIER;
+    else
+      g_token_type = NAME;
+  }
+  else if (c == '*') {
+    *p++ = c;
+    g_token_type = c;
   }
   else {
+    *p++ = c;
     g_token_type = c;
   }
   *p = '\0';
   return g_token_type;
 }
 
+// when entering and returning from ddcl(), it has got one more token that does
+// not belong to itself (ddcl part)
+
 int dcl()
 {
-  g_paren_type = 0;
   int res;
   int ns = 0;
   while (get_token_type() == '*') {
@@ -115,79 +160,12 @@ int dcl()
   return res;
 }
 
-int pdcl()
-{
-  g_paren_type = 0;
-  int res;
-  int ns = 0;
-  while (get_token_type() == '*') {
-    ++ns;
-  }
-  if ((res = pddcl()) != OK)
-    return res;
-  while (ns-- > 0)
-    strcat(g_par_dcl, "pointer to ");
-  return res;
-}
-
-int pddcl()
-{
-  if (g_token_type == NAME) {
-    strcpy(g_par_name, g_token);
-  }
-  else if (g_token_type == '(') {
-    int res;
-    if ((res = pdcl()) != OK)
-      return res;
-    if (g_token_type != ')')
-      return ERR_PAR_MISSING_CLOSING_PARENTHESIS;
-  }
-  else if (g_token_type == ',' || g_token_type == ')') {
-    return OK;
-  }
-  else {
-    return ERR_PAR_EXPECT_NAME_OR_DCL_IN_PARENTHESES;
-  }
-  for (int tt = get_token_type(); tt == PARENTHESES || tt == BRACKETS;
-       tt = get_token_type()) {
-    if (tt == PARENTHESES) {
-      int paratt = get_token_type();
-      if (g_token_type == ')')
-        strcat(g_par_dcl, "function of void returning ");
-      else
-        return ERR_PAR_MISSING_CLOSING_PARENTHESIS;
-      //       else {
-      //         strcat(g_par_dcl, "function of ");
-      // SPAGHETTI:
-      //         if ((res = paraparse()) != OK)
-      //           return res;
-      //         strcat(g_par_dcl, g_par_dcl);
-      //         strcat(g_par_dcl, g_par_type);
-      //         get_token_type();
-      //         if (g_token_type == ',') {
-      //           strcat(g_par_dcl, " and ");
-      //           get_token_type();
-      //           goto SPAGHETTI;
-      //         }
-      //         if (g_token_type != ')')
-      //           return ERR_MISSING_CLOSING_PARENTHESIS;
-      //         strcat(g_par_dcl, " returning ");
-      //       }
-    }
-    else {
-      strcat(g_par_dcl, "array");
-      strcat(g_par_dcl, g_token);
-      strcat(g_par_dcl, " of ");
-    }
-  }
-  return OK;
-}
-
 int ddcl()
 {
   int res;
-  if (g_token_type == NAME) {
-    strcpy(g_name, g_token);
+  if (g_token_type == NAME || g_token_type == QUALIFIER) {
+    if (strlen(g_name) == 0)
+      strcpy(g_name, g_token);
   }
   else if (g_token_type == '(') {
     if ((res = dcl()) != OK)
@@ -195,36 +173,24 @@ int ddcl()
     if (g_token_type != ')')
       return ERR_MISSING_CLOSING_PARENTHESIS;
   }
+  else if (g_token_type == ')' || g_token_type == ',') {
+    return OK;
+  }
   else {
     return ERR_EXPECT_NAME_OR_DCL_IN_PARENTHESES;
   }
+
   for (int tt = get_token_type(); tt == PARENTHESES || tt == BRACKETS;
        tt = get_token_type()) {
     if (tt == PARENTHESES) {
-      int paratt = get_token_type();
-      if (g_token_type == ')')
-        strcat(g_dcl, "function of void returning ");
-      else {
-        strcat(g_dcl, "function of ");
-SPAGHETTI:
-        if ((res = paraparse()) != OK)
+      strcat(g_dcl, "function of ");
+      while (g_token_type != ')') {
+        if ((res = parse()) != OK)
           return res;
-        strcat(g_dcl, g_par_dcl);
-        strcat(g_dcl, g_par_type);
-        if (strlen(g_par_name)) {
-          strcat(g_dcl, " called ");
-          strcat(g_dcl, g_par_name);
-        }
-        // get_token_type();
-        if (g_token_type == ',') {
+        if (g_token_type == ',')
           strcat(g_dcl, " and ");
-          get_token_type();
-          goto SPAGHETTI;
-        }
-        // if (g_token_type != ')')
-        //   return ERR_MISSING_CLOSING_PARENTHESIS;
-        strcat(g_dcl, " returning ");
       }
+      strcat(g_dcl, " returning ");
     }
     else {
       strcat(g_dcl, "array");
@@ -245,7 +211,7 @@ void error_handle(int res)
       printf("[error] expect name or (dcl)\n");
       break;
     case ERR_SYNTAX_ERROR:
-      printf("[error] syntax error\n");
+      printf("[error] syntax error, expect ending with ; or newline\n");
       break;
     case ERR_PAR_MISSING_CLOSING_PARENTHESIS:
       printf("[error] para missing closing parenthesis ')'\n");
@@ -254,18 +220,19 @@ void error_handle(int res)
       printf("[error] para expect name or (dcl)\n");
       break;
     case ERR_PAR_SYNTAX_ERROR:
-      printf("[error] para syntax error\n");
+      printf("[error] para syntax error, expect ending with , or )\n");
+      break;
+    case ERR_NOT_IMPLEMENTED:
+      printf("[error] not implemented\n");
       break;
     default:
-      printf("[error] unknown error\n");
+      printf("[error] unknown error code %d\n", res);
       break;
   }
-  fprintf(
-      stderr,
-      "[error] g_name = %s, g_dcl = %s, g_type = %s, g_token = %s, "
-      "g_token_type = %d, g_par_name = %s, g_par_dcl = %s, g_par_type = %s, g_paren_type = %d\n",
-      g_name, g_dcl, g_type, g_token, g_token_type, g_par_name, g_par_dcl,
-      g_par_type, g_paren_type);
+  fprintf(stderr,
+          "[error] g_name = %s, g_dcl = %s, g_type = %s, g_token = %s, "
+          "g_token_type = %d, g_par_name = %s\n",
+          g_name, g_dcl, g_type, g_token, g_token_type, g_par_name);
   // ignore all trailing characters in the line
   if (g_token_type != '\n') {
     while (getch() != '\n')
@@ -273,40 +240,68 @@ void error_handle(int res)
   }
 }
 
-void parse()
+int parse()
 {
-  strcpy(g_type, g_token);
-  g_dcl[0] = '\0';
+  get_token_type();
+  if (g_token_type == ')') {
+    strcat(g_dcl, "void");
+    return OK;
+  }
+
+  char a_name[100];
+  char a_type[100];
+  char a_qual[100];
+
+  a_name[0] = '\0';
+  a_type[0] = '\0';
+  a_qual[0] = '\0';
+
+  if (g_token_type == NAME) {
+    strcpy(a_name, g_token);
+    if (peek_token_type() == QUALIFIER) {
+      get_token_type();
+      sprintf(a_type, "%s ", g_token);
+    }
+    strcat(a_type, a_name);
+  }
+  else if (g_token_type == QUALIFIER) {
+    strcpy(a_type, g_token);
+    get_token_type();
+    if (g_token_type == NAME) {
+      strcat(a_type, " ");
+      strcat(a_type, g_token);
+    }
+    else
+      return ERR_UNCATEGORIZED;
+  }
+  else
+    return ERR_UNCATEGORIZED;
+
   int res = dcl();
-  if (res == OK && g_token_type != '\n')
+  if (res == OK
+      && (g_token_type != ',' && g_token_type != ')' && g_token_type != ';'
+          && g_token_type != '\n'))
     res = ERR_SYNTAX_ERROR;
   if (res == OK)
-    printf("%s:  %s%s\n", g_name, g_dcl, g_type);
-  else
-    error_handle(res);
-}
-
-int paraparse()
-{
-  strcpy(g_par_type, g_token);
-  g_par_dcl[0] = '\0';
-  g_par_name[0] = '\0';
-  int res = pdcl();
-  if (res == OK && g_token_type != ')' && g_token_type != ',')
-    res = ERR_PAR_SYNTAX_ERROR;
-  g_paren_type = 1;
+    strcat(g_dcl, a_type);
   return res;
 }
 
 void clean()
 {
-  g_name[0] = g_type[0] = g_dcl[0] = '\0';
+  g_dcl[0] = '\0';
+  g_token[0] = '\0';
+  g_name[0] = '\0';
 }
 
 int main()
 {
-  while (get_token_type() != EOF) {
-    parse();
+  int res;
+  while (1) {
+    if ((res = parse()) != OK)
+      error_handle(res);
+    printf("%s: ", g_name);
+    printf("%s\n", g_dcl);
     clean();
   }
   return 0;
