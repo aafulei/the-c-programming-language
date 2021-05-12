@@ -236,8 +236,8 @@ int parse()
   strcpy(a_type, g_token);
 
   int res = dcl();
-  // if (res == OK && (g_token_type != ';' && g_token_type != '\n'))
-  //   res = ERR_SYNTAX_ERROR;
+  if (res == OK && (g_token_type != ',' && g_token_type != ')' && g_token_type != ';' && g_token_type != '\n'))
+    res = ERR_SYNTAX_ERROR;
   if (res == OK)
     strcat(g_dcl, a_type);
   return res;
