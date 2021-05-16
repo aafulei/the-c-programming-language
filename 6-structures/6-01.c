@@ -1,5 +1,5 @@
 /* Exercise 6-1. Our version of getword does not properly handle underscores,
- * string constants, comments or preprocessor control ines. Writer a better
+ * string constants, comments or preprocessor control lines. Writer a better
  * version. */
 
 #include <ctype.h>
@@ -15,16 +15,14 @@ static int g_in_double_quotes = 0;
 static int g_prev_word_type = 0;
 static int g_escaping = 0;
 
-enum word_type
-{
+enum word_type {
   SIG_QUOTE_OUT = 1,
   SIG_QUOTE_IN = 2,
   DBL_QUOTE_OUT = 3,
   DBL_QUOTE_IN = 4,
-  BLK_COMMENT_IN = 5,
-  BLK_COMMENT_OUT = 6,
+  BLOCK_COMMENT = 5,
+  LINE_COMMENT = 6,
   PREPROCESSOR_CTRL_LINE = 7,
-  COMMENT_LINE = 8,
 };
 
 int getch(void)
@@ -37,6 +35,12 @@ int ungetch(int c)
   return g_next == g_buffer + BUFSIZE ? EOF : (*g_next++ = c);
 }
 
+int peekch()
+{
+  int c = getch();
+  ungetch(c);
+  return c;
+}
 
 int isalpha_(int c)
 {
@@ -58,6 +62,34 @@ int getword(char *word, int lim)
     ;
   if (c == EOF) {
     return EOF;
+  }
+  if (c == '/' && peekch() == '*') {
+    getch();
+    while (1) {
+      c = getch();
+      if (c == EOF)
+        return c;
+      if (c == '*' && peekch() == '/') {
+        getch();
+        return BLOCK_COMMENT;
+      }
+    }
+  }
+  if (c == '/' && peekch() == '/') {
+    getch();
+    while (1) {
+      c = getch();
+      if (c == EOF)
+        return c;
+      if (c == '\n') {
+        return LINE_COMMENT;
+      }
+    }
+  }
+  if (c == '#' && !g_in_single_quotes && !g_in_double_quotes) {
+    while ((c = getch()) != '\n')
+      ;
+    return PREPROCESSOR_CTRL_LINE;
   }
   if (g_in_single_quotes || g_in_double_quotes) {
     if (g_prev_word_type == '\\') {
@@ -98,18 +130,29 @@ int main()
   char word[MAXWORD + 1];
   int wt;
   while ((wt = getword(word, MAXWORD)) != EOF) {
-    if (wt == SIG_QUOTE_IN) {
-      printf("------ inside single quotes -------\n");
+    if (wt == BLOCK_COMMENT) {
+      printf("------ block comment ----------------\n");  /* block comment */
     }
-    if (wt == DBL_QUOTE_IN) {
-      printf("------ inside double quotes -------\n");
+    else if (wt == LINE_COMMENT) {
+      printf("------ line comment -----------------\n");   // line comment
     }
-    printf("%s\n", word);
-    if (wt == SIG_QUOTE_OUT) {
-      printf("------ out of single quotes -------\n");
+    else if (wt == PREPROCESSOR_CTRL_LINE) {
+      printf("------ preprocessor control line ----\n");
     }
-    if (wt == DBL_QUOTE_OUT) {
-      printf("------ out of double quotes -------\n");
+    else {
+      if (wt == SIG_QUOTE_IN) {
+        printf("------ inside single quotes -------\n");
+      }
+      else if (wt == DBL_QUOTE_IN) {
+        printf("------ inside double quotes -------\n");
+      }
+      printf("%s\n", word);
+      if (wt == SIG_QUOTE_OUT) {
+        printf("------ out of single quotes -------\n");
+      }
+      else if (wt == DBL_QUOTE_OUT) {
+        printf("------ out of double quotes -------\n");
+      }
     }
   }
   return 0;
