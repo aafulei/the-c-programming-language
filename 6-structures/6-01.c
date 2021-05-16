@@ -10,19 +10,14 @@
 
 static int g_buffer[BUFSIZE];
 static int *g_next = g_buffer;
-static int g_in_single_quotes = 0;
-static int g_in_double_quotes = 0;
-static int g_prev_word_type = 0;
-static int g_escaping = 0;
 
 enum word_type {
-  SIG_QUOTE_OUT = 1,
-  SIG_QUOTE_IN = 2,
-  DBL_QUOTE_OUT = 3,
-  DBL_QUOTE_IN = 4,
-  BLOCK_COMMENT = 5,
-  LINE_COMMENT = 6,
-  PREPROCESSOR_CTRL_LINE = 7,
+  ERROR = 0,
+  SINGLE_QUOTES = 1,
+  DOUBLE_QUOTES = 2,
+  BLOCK_COMMENT = 3,
+  LINE_COMMENT = 4,
+  PREPROCESSOR_CTRL_LINE = 5,
 };
 
 int getch(void)
@@ -86,33 +81,36 @@ int getword(char *word, int lim)
       }
     }
   }
-  if (c == '#' && !g_in_single_quotes && !g_in_double_quotes) {
+  if (c == '#') {
     while ((c = getch()) != '\n')
       ;
     return PREPROCESSOR_CTRL_LINE;
   }
-  if (g_in_single_quotes || g_in_double_quotes) {
-    if (g_prev_word_type == '\\') {
-      g_escaping = !g_escaping;
-    }
-    else {
-      g_escaping = 0;
-    }
+  if (c == '\'') {
+    c = getch();
+    if (c == '\\')
+      getch();
+    if ((c = getch()) != '\'')
+      return ERROR;
+    else
+      return SINGLE_QUOTES;
   }
+  if (c == '\"') {
+    int lastc = c;
+    int escaping = 0;
+    while (1) {
+      c = getch();
+      if (c == '\\')
+        escaping = !escaping;
+      if (c == '\"' && !escaping)
+        break;
+    }
+    return DOUBLE_QUOTES;
+  }
+
   if (!isalpha_(*w++ = c)) {
     *w = '\0';
-    if (c == '\'' && !g_in_double_quotes && !g_escaping) {
-      g_in_single_quotes = !g_in_single_quotes;
-      g_prev_word_type = SIG_QUOTE_OUT + g_in_single_quotes;
-      return g_prev_word_type;
-    }
-    if (c == '"' && !g_in_single_quotes && !g_escaping) {
-      g_in_double_quotes = !g_in_double_quotes;
-      g_prev_word_type = DBL_QUOTE_OUT + g_in_double_quotes;
-      return g_prev_word_type;
-    }
-    g_prev_word_type = c;
-    return g_prev_word_type;
+    return c;
   }
   for (; --lim > 0; w++) {
     if (!isalnum_(*w = getch())) {
@@ -121,8 +119,7 @@ int getword(char *word, int lim)
     }
   }
   *w = '\0';
-  g_prev_word_type = word[0];
-  return g_prev_word_type;
+  return word[0];
 }
 
 int main()
@@ -131,28 +128,22 @@ int main()
   int wt;
   while ((wt = getword(word, MAXWORD)) != EOF) {
     if (wt == BLOCK_COMMENT) {
-      printf("------ block comment ----------------\n");  /* block comment */
+      printf("------ block comment ----------------\n"); /* block comment */
     }
     else if (wt == LINE_COMMENT) {
-      printf("------ line comment -----------------\n");   // line comment
+      printf("------ line comment -----------------\n"); // line comment
     }
     else if (wt == PREPROCESSOR_CTRL_LINE) {
       printf("------ preprocessor control line ----\n");
     }
+    else if (wt == SINGLE_QUOTES) {
+      printf("------ single quotes ----------------\n");
+    }
+    else if (wt == DOUBLE_QUOTES) {
+      printf("------ double quotes ----------------\n");
+    }
     else {
-      if (wt == SIG_QUOTE_IN) {
-        printf("------ inside single quotes -------\n");
-      }
-      else if (wt == DBL_QUOTE_IN) {
-        printf("------ inside double quotes -------\n");
-      }
       printf("%s\n", word);
-      if (wt == SIG_QUOTE_OUT) {
-        printf("------ out of single quotes -------\n");
-      }
-      else if (wt == DBL_QUOTE_OUT) {
-        printf("------ out of double quotes -------\n");
-      }
     }
   }
   return 0;
