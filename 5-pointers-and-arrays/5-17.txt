@@ -1,0 +1,7 @@
+Allen	Black	M	19	37280293
+Bruce	He	M	13	83940234
+Charlie	Wright	M	11	45720823
+Lisa	Wong	F	6	83092482
+Allen	Borton	M	17	80204030
+Alice	Wong	F	6	57102934
+Lucy	Black	F	14	40203942
