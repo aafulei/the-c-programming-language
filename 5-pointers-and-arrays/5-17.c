@@ -13,9 +13,9 @@
 // Alice     Wong        F    6    57102934
 // Lucy      Black       F   14    40203942
 
-// ./a.out -:5
-// ./a.out -n:5
-// ./a.out -:2,1 -nr:4
+// ./a.out -5
+// ./a.out -5:n
+// ./a.out -2,1 -4:nr
 
 #include <ctype.h>
 #include <stdio.h>
@@ -37,8 +37,7 @@ static char g_buffer[BUFSIZE];
 static char *g_next = g_buffer;
 static char *lineptr[MAXLINES];
 
-static char *matptr[MAXLINES][MAXFIELDS];
-
+// static char *mat[MAXLINES][MAXFIELDS];
 static char **mat[MAXLINES];
 
 static int g_options = 0;
@@ -54,7 +53,7 @@ int g_k = 0;
 int g_nf = 1;
 int g_maxrf = 0;
 
-int readlines(char *lineptr[], int nlines, int *nmaxfields);
+int readlines(void);
 void writelines(char *lineptr[], int nlines);
 
 void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
@@ -64,8 +63,6 @@ int gencmp(const char **, const char **);
 int numcmp(const char *, const char *);
 int rstrcmp(const char *, const char *);
 int rchacmp(const char *, const char *);
-
-// int (*rev(int (*f)(void *, void *), int r))(void *, void *) {}
 
 void qsort_(void *v[], int left, int right, int (*comp)(void *, void *))
 {
@@ -83,22 +80,6 @@ void qsort_(void *v[], int left, int right, int (*comp)(void *, void *))
   qsort_(v, last + 1, right, comp);
 }
 
-// void qqsort_(void ***v, int left, int right, int (*comp)(void **, void **))
-// {
-//   int i, last;
-//   void swap2(void ***, int, int);
-//   if (left >= right)
-//     return;
-//   swap2(v, left, (left + right) / 2);
-//   last = left;
-//   for (i = left + 1; i <= right; ++i)
-//     if ((*comp)(v[i], v[left]) < 0)
-//       swap2(v, ++last, i);
-//   swap2(v, left, last);
-//   qqsort_(v, left, last - 1, comp);
-//   qqsort_(v, last + 1, right, comp);
-// }
-
 void swap(void *v[], int i, int j)
 {
   int *t;
@@ -107,45 +88,8 @@ void swap(void *v[], int i, int j)
   v[j] = t;
 }
 
-void swap2(void **v[], int i, int j)
+int field_cmp(const char **s, const char **t, int i)
 {
-  printf("swap2ing %d with %d\n", i, j);
-  void **t;
-  t = v[i];
-  v[i] = v[j];
-  v[j] = t;
-  printf("return swap2ing %d with %d\n", i, j);
-  // writefields(7, 4);
-}
-
-
-int field_cmp(const char *s, const char *t, int opt, int col)
-{
-  printf("compare %s vs %s\n", s, t);
-  int (*fp)(const char *, const char *);
-  // set global options
-  g_options = opt;
-  if (opt & NUMERIC)
-    fp = numcmp;
-  else if (opt & FOLD)
-    fp = rchacmp;
-  else
-    fp = rstrcmp;
-  return fp(s, t);
-}
-
-int gencmp(const char **s, const char **t)
-{
-  for (int i = 0, res; i != g_nf; ++i) {
-    if ((res = field_cmp(s[i], t[i], g_opt[i], g_col[i])) != 0)
-      return res;
-  }
-  return 0;
-}
-
-int field_cmp2(const char **s, const char **t, int i)
-{
-  // printf("compare %s vs %s\n", s[g_col[i]-1], t[g_col[i]-1]);
   int (*fp)(const char *, const char *);
   // set global options
   g_options = g_opt[i];
@@ -159,20 +103,18 @@ int field_cmp2(const char **s, const char **t, int i)
 }
 
 
-int gencmp2(const char **s, const char **t)
+int gencmp(const char **s, const char **t)
 {
   int n = g_k;
-  if (n > g_maxrf) {
-    fprintf(stderr, "will only compare nfields = %d\n", g_maxrf);
-  }
-  // MARK
   for (int i = 0, res; i != n; ++i) {
-    if ((res = field_cmp2(s, t, i)) != 0)
+    if (g_col[i] - 1 > g_maxrf) {
+      continue;
+    }
+    if ((res = field_cmp(s, t, i)) != 0)
       return res;
   }
   return 0;
 }
-
 
 int numcmp(const char *s, const char *t)
 {
@@ -231,25 +173,6 @@ int rchacmp(const char *s, const char *t)
     return res;
 }
 
-void *alloc(int nb)
-{
-  if (g_next + nb <= g_buffer + BUFSIZE) {
-    void *res = g_next;
-    g_next += nb;
-    return res;
-  }
-  else
-    return NULL;
-}
-
-void afree(void *p)
-{
-  if (!p)
-    return;
-  if (g_buffer <= (char *)p && (char *)p < g_next)
-    g_next = p;
-}
-
 int getline_(char s[], int lim)
 {
   int c, i;
@@ -262,93 +185,13 @@ int getline_(char s[], int lim)
   return i;
 }
 
-int readlines(char *lineptr[], int maxlines, int *nmaxfields)
-{
-  int len, nlines;
-  char *p, line[MAXLEN];
-  nlines = 0;
-  while ((len = getline_(line, MAXLEN)) > 0)
-    if (nlines >= maxlines || (p = alloc(len)) == NULL)
-      return -1;
-    else {
-      line[len - 1] = '\0';
-      strcpy(p, line);
-      lineptr[nlines] = p;
-      for (int j = 0, prevj = 0, k = 0, ready = 0; j != len; ++j) {
-          if (line[j] == '\t')
-            ready = 1;
-          else if (ready) {
-            ready = 0;
-            char *q = alloc(j - prevj + 1);
-            strncpy(q, line + prevj, j - prevj);
-            // printf("nlines = %d, k = %d, %s\n", nlines, k, q);
-            matptr[nlines][k] = q;
-            prevj = j;
-            ++k;
-          }
-          if (k-1 > *nmaxfields)
-            *nmaxfields = k;
-      }
-
-      ++nlines;
-    }
-  return nlines;
-}
-
-int readlines2(void)
+int readlines(void)
 {
   int len, nlines;
   char *p, line[MAXLEN];
   nlines = 0;
   while ((len = getline_(line, MAXLEN)) > 0) {
-    if (nlines >= MAXLINES || (p = alloc(len)) == NULL)
-      return -1;
-    else {
-      line[len - 1] = '\0';
-      strcpy(p, line);
-      mat[nlines] = calloc(g_nf, sizeof(char *));
-
-      // printf("deal with %s\n", line);
-      for (int j = 0, prevj = 0, k = 0, ready = 0; j != len; ++j) {
-          if (line[j] == '\t')
-            ready = 1;
-          else if (ready) {
-            ready = 0;
-            char *q = alloc(j - prevj + 1);
-            strncpy(q, line + prevj, j - prevj);
-            mat[nlines][k] = q;
-            // printf("mat got %s\n", mat[nlines][k]);
-            prevj = j;
-            ++k;
-            if (k == g_nf) {
-              break;
-            }
-          }
-          else if (line[j] == '\0') {
-            char *q = alloc(j - prevj + 1);
-            strncpy(q, line + prevj, j - prevj);
-            mat[nlines][k] = q;
-            // printf("mat got %s\n", mat[nlines][k]);
-            prevj = j;
-            ++k;
-            if (k == g_nf) {
-              break;
-            }
-          }
-      }
-      ++nlines;
-    }
-  }
-  return nlines;
-}
-
-int readlines3(void)
-{
-  int len, nlines;
-  char *p, line[MAXLEN];
-  nlines = 0;
-  while ((len = getline_(line, MAXLEN)) > 0) {
-    if (nlines >= MAXLINES || (p = alloc(len)) == NULL)
+    if (nlines >= MAXLINES || (p = malloc(len)) == NULL)
       return -1;
     else {
       line[len - 1] = '\0';
@@ -360,25 +203,20 @@ int readlines3(void)
             ready = 1;
           else if (ready) {
             ready = 0;
-            char *q = alloc(j - prevj + 1);
+            char *q = malloc(j - prevj + 1);
             strncpy(q, line + prevj, j - prevj);
             mat[nlines][k] = q;
+            // printf("mat[%d][%d] = %s\n", nlines, k, q);
             prevj = j;
             ++k;
-            // if (k == g_nf) {
-            //   break;
-            // }
           }
           else if (line[j] == '\0') {
-            char *q = alloc(j - prevj + 1);
+            char *q = malloc(j - prevj + 1);
             strncpy(q, line + prevj, j - prevj);
             mat[nlines][k] = q;
-            // printf("mat got %s\n", mat[nlines][k]);
+            // printf("mat[%d][%d] = %s\n", nlines, k, q);
             prevj = j;
             ++k;
-            // if (k == g_nf) {
-            //   break;
-            // }
           }
       }
       if (k > g_maxrf)
@@ -389,36 +227,7 @@ int readlines3(void)
   return nlines;
 }
 
-
-
-void writelines(char *lineptr[], int nlines)
-{
-  int i;
-  for (i = 0; i < nlines; ++i)
-    printf("%s\n", lineptr[i]);
-}
-
-void writefields(int nlines, int nfields)
-{
-  for (int i = 0; i != nlines; ++i) {
-    for (int j = 0; j != nfields; ++j) {
-      printf("%s\t", matptr[i][j]);
-    }
-    putchar('\n');
-  }
-}
-
-void writefields2(int nlines, int nfields)
-{
-  for (int i = 0; i != nlines; ++i) {
-    for (int j = 0; j != nfields; ++j) {
-      printf("%s\t", mat[i][j]);
-    }
-    putchar('\n');
-  }
-}
-
-void writefields3(int nlines)
+void writefields(int nlines)
 {
   for (int i = 0; i != nlines; ++i) {
     for (int j = 0; j != MAXFIELDS; ++j) {
@@ -452,7 +261,6 @@ void parse(int argc, char *argv[])
         col = col * 10 + (argv[i][j] - '0');
         ++j;
       }
-      // g_opt[g_k] = opt;
       g_col[g_k] = col;
       ++g_k;
     }
@@ -494,16 +302,16 @@ int main(int argc, char *argv[])
 {
   init();
   parse(argc, argv);
-
   int nlines;
-  if ((nlines = readlines3()) >= 0) {
+  if ((nlines = readlines()) >= 0) {
     printf("nlines = %d\n", nlines);
     printf("g_maxrf = %d\n", g_maxrf);
-    printf("--------------------------------------------------------------\n");
-    writefields3(nlines);
-    printf("--------------------------------------------------------------\n");
-    qsort_((void **)mat, 0, nlines - 1, (int (*)(void *, void *))gencmp2);
-    writefields3(nlines);
+    printf("----------------------------------------------------------------------------------\n");
+    writefields(nlines);
+    printf("----------------------------------------------------------------------------------\n");
+    qsort_((void **)mat, 0, nlines - 1, (int (*)(void *, void *))gencmp);
+    writefields(nlines);
+    printf("----------------------------------------------------------------------------------\n");
     return 0;
   }
   else {
