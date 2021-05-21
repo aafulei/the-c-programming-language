@@ -147,10 +147,10 @@ int field_cmp2(const char **s, const char **t, int i)
   // printf("compare %s vs %s\n", s[g_col[i]-1], t[g_col[i]-1]);
   int (*fp)(const char *, const char *);
   // set global options
-  int opt = g_opt[i];
-  if (opt & NUMERIC)
+  g_options = g_opt[i];
+  if (g_options & NUMERIC)
     fp = numcmp;
-  else if (opt & FOLD)
+  else if (g_options & FOLD)
     fp = rchacmp;
   else
     fp = rstrcmp;
@@ -422,62 +422,69 @@ void writefields3(int nlines)
   }
 }
 
+void init()
+{
+  g_opt[0] = 0;
+  g_col[0] = 1;
+}
+
 void parse(int argc, char *argv[])
 {
   for (int i = 1; i < argc; ++i) {
     if (argv[i][0] != '-')
       continue;
-    int j = 1;
+    int j = 0;
     int opt = 0;
-    for (/* empty */; argv[i][j] && argv[i][j] != ':'; ++j) {
-      switch (argv[i][j]) {
-        case 'n':
-          opt |= NUMERIC;
-          break;
-        case 'r':
-          opt |= REVERSE;
-          break;
-        case 'f':
-          opt |= FOLD;
-          break;
-        case 'd':
-          opt |= DIR;
-          break;
-        default:
-          fprintf(stderr, "unknown option %c\n", argv[i][j]);
-          break;
+    int prev_k = g_k;
+    do {
+      ++j;
+      int col = 0;
+      while (isdigit(argv[i][j])) {
+        col = col * 10 + (argv[i][j] - '0');
+        ++j;
+      }
+      // g_opt[g_k] = opt;
+      g_col[g_k] = col;
+      ++g_k;
+    }
+    while (argv[i][j] == ',');
+    if (argv[i][j] == ':') {
+      ++j;
+      for (/* empty */; argv[i][j]; ++j) {
+        switch (argv[i][j]) {
+          case 'n':
+            opt |= NUMERIC;
+            break;
+          case 'r':
+            opt |= REVERSE;
+            break;
+          case 'f':
+            opt |= FOLD;
+            break;
+          case 'd':
+            opt |= DIR;
+            break;
+          default:
+            fprintf(stderr, "unknown option %c\n", argv[i][j]);
+            break;
+        }
+      }
+      for (int i = prev_k; i != g_k; ++i) {
+        g_opt[i] = opt;
       }
     }
     g_opt[g_k] = opt;
-    if (argv[i][j] == ':') {
-      do {
-        ++j;
-        int col = 0;
-        while (isdigit(argv[i][j])) {
-          col = col * 10 + (argv[i][j] - '0');
-          ++j;
-        }
-        g_opt[g_k] = opt;
-        g_col[g_k] = col;
-
-        if (col > g_nf)
-          g_nf = col;
-        ++g_k;
-      }
-      while (argv[i][j] == ',');
-    }
   }
   for (int i = 0; i != g_k; ++i) {
     fprintf(stderr, "opt[%d] = %d, col[%d] = %d\n", i, g_opt[i], i, g_col[i]);
   }
-  fprintf(stderr, "g_nf = %d\n", g_nf);
+  fprintf(stderr, "g_k = %d\n", g_k);
 }
 
 int main(int argc, char *argv[])
 {
+  init();
   parse(argc, argv);
-  g_opt[0] = 0;
-  g_col[0] = 1;
 
   int nlines;
   if ((nlines = readlines3()) >= 0) {
