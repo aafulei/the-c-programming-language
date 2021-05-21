@@ -52,6 +52,7 @@ int g_opt[MAXFIELDS];
 int g_col[MAXFIELDS];
 int g_k = 0;
 int g_nf = 1;
+int g_maxrf = 0;
 
 int readlines(char *lineptr[], int nlines, int *nmaxfields);
 void writelines(char *lineptr[], int nlines);
@@ -160,7 +161,12 @@ int field_cmp2(const char **s, const char **t, int i)
 
 int gencmp2(const char **s, const char **t)
 {
-  for (int i = 0, res; i != g_k; ++i) {
+  int n = g_k;
+  if (n > g_maxrf) {
+    fprintf(stderr, "will only compare nfields = %d\n", g_maxrf);
+  }
+  // MARK
+  for (int i = 0, res; i != n; ++i) {
     if ((res = field_cmp2(s, t, i)) != 0)
       return res;
   }
@@ -348,7 +354,8 @@ int readlines3(void)
       line[len - 1] = '\0';
       strcpy(p, line);
       mat[nlines] = calloc(MAXFIELDS, sizeof(char *));
-      for (int j = 0, prevj = 0, k = 0, ready = 0; j != len; ++j) {
+      int k= 0;
+      for (int j = 0, prevj = 0, ready = 0; j != len; ++j) {
           if (line[j] == '\t')
             ready = 1;
           else if (ready) {
@@ -374,6 +381,8 @@ int readlines3(void)
             // }
           }
       }
+      if (k > g_maxrf)
+        g_maxrf = k;
       ++nlines;
     }
   }
@@ -489,6 +498,7 @@ int main(int argc, char *argv[])
   int nlines;
   if ((nlines = readlines3()) >= 0) {
     printf("nlines = %d\n", nlines);
+    printf("g_maxrf = %d\n", g_maxrf);
     printf("--------------------------------------------------------------\n");
     writefields3(nlines);
     printf("--------------------------------------------------------------\n");
