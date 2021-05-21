@@ -27,7 +27,8 @@
 #define MAXLEN    200
 #define MAXLINES  5000
 #define BUFSIZE   10000
-// default opt is 0
+
+#define DEFAULT   0
 #define NUMERIC   1
 #define REVERSE   2
 #define FOLD      4
@@ -35,34 +36,26 @@
 
 static char g_buffer[BUFSIZE];
 static char *g_next = g_buffer;
-static char *lineptr[MAXLINES];
 
-// static char *mat[MAXLINES][MAXFIELDS];
-static char **mat[MAXLINES];
+static char **g_mat[MAXLINES];
 
-static int g_options = 0;
+static int g_opt[MAXFIELDS] = {DEFAULT};
+static int g_col[MAXFIELDS] = {1};
 
-// g_opt[0] = 0
-// g_opt[1] = NUMERIC & REVERSE
-int g_opt[MAXFIELDS];
+static int g_cur_opt = 0;
+static int g_num_col = 0;
+static int g_num_opt = 0;
 
-// g_col[0] = 2
-// g_col[1] = 1
-int g_col[MAXFIELDS];
-int g_k = 0;
-int g_nf = 1;
-int g_maxrf = 0;
 
 int readlines(void);
-void writelines(char *lineptr[], int nlines);
+void writelines(char *[], int);
 
-void qsort_(void *lineptr[], int left, int right, int (*comp)(void *, void *));
 
 int gencmp(const char **, const char **);
-
 int numcmp(const char *, const char *);
 int rstrcmp(const char *, const char *);
 int rchacmp(const char *, const char *);
+void qsort_(void *[], int left, int right, int (*)(void *, void *));
 
 void qsort_(void *v[], int left, int right, int (*comp)(void *, void *))
 {
@@ -92,10 +85,10 @@ int field_cmp(const char **s, const char **t, int i)
 {
   int (*fp)(const char *, const char *);
   // set global options
-  g_options = g_opt[i];
-  if (g_options & NUMERIC)
+  g_cur_opt = g_opt[i];
+  if (g_cur_opt & NUMERIC)
     fp = numcmp;
-  else if (g_options & FOLD)
+  else if (g_cur_opt & FOLD)
     fp = rchacmp;
   else
     fp = rstrcmp;
@@ -105,9 +98,9 @@ int field_cmp(const char **s, const char **t, int i)
 
 int gencmp(const char **s, const char **t)
 {
-  int n = g_k;
+  int n = g_num_opt;
   for (int i = 0, res; i != n; ++i) {
-    if (g_col[i] - 1 > g_maxrf) {
+    if (g_col[i] - 1 > g_num_col) {
       continue;
     }
     if ((res = field_cmp(s, t, i)) != 0)
@@ -121,7 +114,7 @@ int numcmp(const char *s, const char *t)
   double a = atof(s);
   double b = atof(t);
   int res = (a > b) - (a < b);
-  if (g_options & REVERSE)
+  if (g_cur_opt & REVERSE)
     return -res;
   else
     return res;
@@ -129,13 +122,13 @@ int numcmp(const char *s, const char *t)
 
 int rstrcmp(const char *s, const char *t)
 {
-  if (g_options & DIR) {
+  if (g_cur_opt & DIR) {
     while (!isalnum(*s) && *s != ' ' && *s != '\0')
       ++s;
     while (!isalnum(*t) && *t != ' ' && *t != '\0')
       ++t;
   }
-  if (g_options & REVERSE)
+  if (g_cur_opt & REVERSE)
     return strcmp(t, s);
   else
     return strcmp(s, t);
@@ -153,7 +146,7 @@ int rchacmp(const char *s, const char *t)
 {
   unsigned char a, b;
   int res;
-  if (g_options & DIR) {
+  if (g_cur_opt & DIR) {
     while (!isalnum(*s) && *s != ' ' && *s != '\0')
       ++s;
     while (!isalnum(*t) && *t != ' ' && *t != '\0')
@@ -167,7 +160,7 @@ int rchacmp(const char *s, const char *t)
       break;
     }
   }
-  if (g_options & REVERSE)
+  if (g_cur_opt & REVERSE)
     return -res;
   else
     return res;
@@ -196,7 +189,7 @@ int readlines(void)
     else {
       line[len - 1] = '\0';
       strcpy(p, line);
-      mat[nlines] = calloc(MAXFIELDS, sizeof(char *));
+      g_mat[nlines] = calloc(MAXFIELDS, sizeof(char *));
       int k= 0;
       for (int j = 0, prevj = 0, ready = 0; j != len; ++j) {
           if (line[j] == '\t')
@@ -205,22 +198,22 @@ int readlines(void)
             ready = 0;
             char *q = malloc(j - prevj + 1);
             strncpy(q, line + prevj, j - prevj);
-            mat[nlines][k] = q;
-            // printf("mat[%d][%d] = %s\n", nlines, k, q);
+            g_mat[nlines][k] = q;
+            // printf("g_mat[%d][%d] = %s\n", nlines, k, q);
             prevj = j;
             ++k;
           }
           else if (line[j] == '\0') {
             char *q = malloc(j - prevj + 1);
             strncpy(q, line + prevj, j - prevj);
-            mat[nlines][k] = q;
-            // printf("mat[%d][%d] = %s\n", nlines, k, q);
+            g_mat[nlines][k] = q;
+            // printf("g_mat[%d][%d] = %s\n", nlines, k, q);
             prevj = j;
             ++k;
           }
       }
-      if (k > g_maxrf)
-        g_maxrf = k;
+      if (k > g_num_col)
+        g_num_col = k;
       ++nlines;
     }
   }
@@ -231,8 +224,8 @@ void writefields(int nlines)
 {
   for (int i = 0; i != nlines; ++i) {
     for (int j = 0; j != MAXFIELDS; ++j) {
-      if (mat[i][j])
-        printf("%s\t", mat[i][j]);
+      if (g_mat[i][j])
+        printf("%s\t", g_mat[i][j]);
       else
         break;
     }
@@ -240,20 +233,16 @@ void writefields(int nlines)
   }
 }
 
-void init()
-{
-  g_opt[0] = 0;
-  g_col[0] = 1;
-}
-
 void parse(int argc, char *argv[])
 {
   for (int i = 1; i < argc; ++i) {
-    if (argv[i][0] != '-')
+    if (argv[i][0] != '-') {
+      fprintf(stderr, "ignore unrecognized option \"%s\"\n", argv[i][0]);
       continue;
+    }
     int j = 0;
     int opt = 0;
-    int prev_k = g_k;
+    int k = g_num_opt;
     do {
       ++j;
       int col = 0;
@@ -261,8 +250,8 @@ void parse(int argc, char *argv[])
         col = col * 10 + (argv[i][j] - '0');
         ++j;
       }
-      g_col[g_k] = col;
-      ++g_k;
+      g_col[g_num_opt] = col;
+      ++g_num_opt;
     }
     while (argv[i][j] == ',');
     if (argv[i][j] == ':') {
@@ -282,34 +271,31 @@ void parse(int argc, char *argv[])
             opt |= DIR;
             break;
           default:
-            fprintf(stderr, "unknown option %c\n", argv[i][j]);
+            fprintf(stderr, "ignore unrecognized option '%c'\n", argv[i][j]);
             break;
         }
       }
-      for (int i = prev_k; i != g_k; ++i) {
-        g_opt[i] = opt;
-      }
+      while (k++ != g_num_opt)
+        g_opt[k] = opt;
     }
-    g_opt[g_k] = opt;
   }
-  for (int i = 0; i != g_k; ++i) {
+  for (int i = 0; i != g_num_opt; ++i) {
     fprintf(stderr, "opt[%d] = %d, col[%d] = %d\n", i, g_opt[i], i, g_col[i]);
   }
-  fprintf(stderr, "g_k = %d\n", g_k);
+  fprintf(stderr, "g_num_opt = %d\n", g_num_opt);
 }
 
 int main(int argc, char *argv[])
 {
-  init();
   parse(argc, argv);
   int nlines;
   if ((nlines = readlines()) >= 0) {
     printf("nlines = %d\n", nlines);
-    printf("g_maxrf = %d\n", g_maxrf);
+    printf("g_num_col = %d\n", g_num_col);
     printf("----------------------------------------------------------------------------------\n");
     writefields(nlines);
     printf("----------------------------------------------------------------------------------\n");
-    qsort_((void **)mat, 0, nlines - 1, (int (*)(void *, void *))gencmp);
+    qsort_((void **)g_mat, 0, nlines - 1, (int (*)(void *, void *))gencmp);
     writefields(nlines);
     printf("----------------------------------------------------------------------------------\n");
     return 0;
