@@ -1,7 +1,0 @@
-Allen			Wall				M		29		37280293
-Bruce			He					M		31		83940234
-Charlie		Wright			M		51		45720823
-Lisa			Wong				F		26		83092482
-Johnny		Borton			M		47		80204030
-Alice			Gray				F		33		57102934
-Lucy			Miller			F		24		40203942
