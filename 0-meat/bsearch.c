@@ -1,3 +1,5 @@
+// 21/05/22 = Sat
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -31,17 +33,34 @@ char *binary_search_2(char *a, char key, int size)
   return NULL;
 }
 
+char *binary_search_3(char *b, char *e, char key)
+{
+  char *m;
+  while (b < e) {
+    m = b + (e - b) / 2;
+    if (key == *m)
+      return m;
+    if (key < *m)
+      e = m;
+    else
+      b = m + 1;
+  }
+  return NULL;
+}
+
 int main()
 {
   char a[] = "bcdkmp";
-  char *res, c;
+  char *res, c, *res2, c2;
   for (char key = 'a'; key <= 'z'; ++key) {
     res = binary_search_2(a, key, 6);
     if (res)
       c = *res;
     else
       c = '.';
-    printf("%c in \"%s\" @ %d (%c)\n", key, a, binary_search(a, key, 6), c);
+    res2 = binary_search_3(a, a + 6, key);
+    c2 = res2 ? *res2 : '.';
+    printf("%c in \"%s\" @ %d (%c) (%c)\n", key, a, binary_search(a, key, 6), c, c2);
   }
   return 0;
 }

@@ -19,6 +19,15 @@ carelessness
 
 4. Is it reading from stdin or reading from a string?
 
+basics
+------
+1. Do you know that the unit of sizeof operator is bytes?
+
+```c
+int a[] = {1,2,3};
+```
+`sizeof a` is not 3, but 12 (given `int` has 4 bytes)!
+
 string
 ------
 1. Did you reserve one extra space for the '\0'?
