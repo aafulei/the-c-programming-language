@@ -14,10 +14,10 @@ void swap(int *a, int *b)
 
 int icmp(const int *p, const int *q)
 {
-  return (*p > *q)  - (*p < *q);
+  return (*p > *q) - (*p < *q);
 }
 
-void qsort2(int * const b, int * const e, int (*cmp)(const int *, const int *))
+void qsort2(int *const b, int *const e, int (*cmp)(const int *, const int *))
 {
   if (e - b <= 1)
     return;
@@ -44,7 +44,7 @@ void print(int a[], int size)
 
 int main()
 {
-  int a[] = {8, 5, 4, 3, 2, 6, 1, 9, 0, 7};
+  int a[] = { 8, 5, 4, 3, 2, 6, 1, 9, 0, 7 };
   print(a, sizeof a / sizeof a[0]);
   printf("----------------------------------------------------------------\n");
   qsort2(a, a + sizeof a / sizeof a[0], icmp);
