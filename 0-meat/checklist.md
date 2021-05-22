@@ -64,3 +64,7 @@ heap memory
 1. Did you notice that functions in `string.h` put `dest` in front of `src`?
 
 For example, `strcpy(p, q)` copies the contents from `q` to `p`, instead of the other way round.
+
+techniques
+----------
+1. Did you consider the case `a == b` when implementing `swap(a, b)`?
