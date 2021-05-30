@@ -68,3 +68,7 @@ For example, `strcpy(p, q)` copies the contents from `q` to `p`, instead of the 
 techniques
 ----------
 1. Did you consider the case `a == b` when implementing `swap(a, b)`?
+
+data structure
+--------------
+1. In using self-referential structure, did you return `struct node *` and assign it to the parent node?
