@@ -1,14 +1,25 @@
-// now counts the frequency of words
-
 /* Exercise 6-2. Write a program that reads a C program and prints in
  * alphabetical order each group of variable names that are identical in the
  * first 6 characters, but different somewhere thereafter. Don't count words
  * within strings and comments. Make 6 a parameter that can be set from the
  * command line. */
 
+/*
+  gcc 6-02.c && ./a.out 3 < 6-02.c
+
+  ...
+  str (9)
+      strcmp (3)
+      strcpy (1)
+      strlen (2)
+      strncmp (2)
+      strncpy (1)
+  ...
+*/
+
 #include <ctype.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAXWORD 100
@@ -135,32 +146,85 @@ struct node
   struct node *right;
   char *value;
   int count;
+  struct node *list;
 };
 
 struct node *g_root = NULL;
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
+const char *g_keywords[]
+    = { "break",   "case",   "char",     "const",  "continue", "do",
+        "double",  "else",   "enum",     "extern", "float",    "for",
+        "goto",    "if",     "int",      "long",   "register", "return",
+        "short",   "signed", "sizeof",   "static", "struct",   "switch",
+        "typedef", "union",  "unsigned", "void",   "volatile", "while" };
+
+const char **binary_search(const char *w)
+{
+  const char **b = g_keywords,
+             **e = g_keywords + (sizeof(g_keywords) / sizeof(g_keywords[0])),
+             **m;
+  while (b != e) {
+    m = b + (e - b) / 2;
+    int x = strcmp(w, *m);
+    if (x == 0)
+      return m;
+    if (x < 0)
+      e = m;
+    else
+      b = m + 1;
+  }
+  return NULL;
+}
+
+int is_keyword(const char *w)
+{
+  return binary_search(w) != NULL;
+}
+
 struct node *addnode(char *w, struct node *d, int n)
 {
   if (!d) {
     d = malloc(sizeof(struct node));
-    d->left = d->right = NULL;
+    d->left = d->right = d->list = NULL;
     d->count = 1;
-    d->value = malloc(MIN(n, strlen(w)) + 1);
-    strncpy(d->value, w, n);
+    // categorized
+    if (n) {
+      d->value = malloc(MIN(n, strlen(w)) + 1);
+      strncpy(d->value, w, n);
+      d->list = addnode(w, d->list, 0);
+    }
+    // end point
+    else {
+      d->value = malloc(strlen(w) + 1);
+      strcpy(d->value, w);
+    }
     return d;
   }
-  if (strncmp(w, d->value, n) == 0) {
-    ++d->count;
-    return d;
-  }
-  if (strncmp(w, d->value, n) < 0) {
-    d->left = addnode(w, d->left, n);
+  if (n) {
+    if (strncmp(w, d->value, n) == 0) {
+      ++d->count;
+      d->list = addnode(w, d->list, 0);
+    }
+    else if (strncmp(w, d->value, n) < 0) {
+      d->left = addnode(w, d->left, n);
+    }
+    else {
+      d->right = addnode(w, d->right, n);
+    }
     return d;
   }
   else {
-    d->right = addnode(w, d->right, n);
+    if (strcmp(w, d->value) == 0) {
+      ++d->count;
+    }
+    else if (strcmp(w, d->value) < 0) {
+      d->left = addnode(w, d->left, 0);
+    }
+    else {
+      d->right = addnode(w, d->right, 0);
+    }
     return d;
   }
 }
@@ -170,18 +234,21 @@ void printnode(struct node *d)
   if (!d)
     return;
   printnode(d->left);
-  printf("%s: %d\n", d->value, d->count);
+  printf("%s%s (%d)\n", (d->list ? "" : "\t\t"), d->value, d->count);
+  if (d->list) {
+    printnode(d->list);
+  }
   printnode(d->right);
 }
 
 int main(int argc, char *argv[])
 {
-  int n = 6;
-  if (argc == 1 || (n = atoi(argv[1])) == 0) {
-    fprintf(stderr, "warning: usage is \"command [n=6]\"\n");
+  int n;
+  if (argc == 1 || (n = atoi(argv[1])) == 0 || n <= 0) {
+    fprintf(stderr, "warning: usage is \"command [n=6], where n > 0\"\n");
+    n = 6;
   }
   fprintf(stderr, "get n = %d\n", n);
-
 
   char word[MAXWORD + 1];
   int wt;
@@ -205,8 +272,12 @@ int main(int argc, char *argv[])
       printf("\033[2m%s\033[0m\n", word);
     }
     else {
-      printf("%s\n", word);
-      g_root = addnode(word, g_root, n);
+      if (is_keyword(word))
+        printf("\033[32m%s\033[0m\n", word);
+      else {
+        printf("%s\n", word);
+        g_root = addnode(word, g_root, n);
+      }
     }
   }
   printf("================================================================\n");
