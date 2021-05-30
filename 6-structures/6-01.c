@@ -96,18 +96,19 @@ int getword(char *word, int lim)
       return SINGLE_QUOTES;
   }
   if (c == '\"') {
-    int lastc = c;
+    // we consider only one-character escape sequence here
     int escaping = 0;
     while (1) {
       c = getch();
-      if (c == '\\')
-        escaping = !escaping;
+      if (!escaping && c == '\\')
+        escaping = 1;
+      else
+        escaping = 0;
       if (c == '\"' && !escaping)
         break;
     }
     return DOUBLE_QUOTES;
   }
-
   if (!isalpha_(*w++ = c)) {
     *w = '\0';
     return c;
