@@ -47,6 +47,8 @@ void func(char *str)
 
 *Because `getchar()` might return an `EOF`, which couldn't be represented by any `char`.*
 
+4. Did you increment the pointer like `*s++` instead of just `*s` in a loop over the string?
+
 stack memory
 ------------
 1. When you read or write with a pointer, are you sure that there is really an array behind it and you move it within the legal range?
