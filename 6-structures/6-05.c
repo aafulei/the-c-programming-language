@@ -80,9 +80,24 @@ struct nlist *install(char *name, char *defn)
   return p;
 }
 
-struct nlist *remove_(char *name)
+int undef(char *name)
 {
-
+  struct nlist *q = hashtab[hash(name)];
+  if (!q)
+    return 0;
+  if (strcmp(q->name, name) == 0) {
+    hashtab[hash(name)] = q->next;
+  }
+  else {
+    for (struct nlist *p = q; q; p = q, q = q->next) {
+      if (strcmp(q->name, name) == 0) {
+        p->next = q->next;
+        break;
+      }
+    }
+  }
+  free(q);
+  return 1;
 }
 
 int isalpha_(char c)
@@ -138,6 +153,11 @@ int main()
   struct nlist *p = install("GOOD", "really bad");
   p = install("GREAT", "awfully bad");
   p = install("GOOD", "just so so");
+  p = install("VERYGOOD", "worst");
+  if (!undef("ABCD"))
+    printf("no def about ABCD\n");
+  if (undef("VERYGOOD"))
+    printf("undef VERYGOOD\n");
   if (!p) {
     printf("bad alloc\n");
     return 1;
