@@ -39,7 +39,7 @@ char *strdup_(char *s)
   if (!t)
     return NULL;
   for (int i = 0; i <= n; ++i)
-    t[i] = *t++;
+    t[i] = *s++;
   return t;
 }
 
@@ -61,10 +61,11 @@ struct nlist *install(char *name, char *defn)
     p->defn = strdup_(defn);
   }
   else {
-    struct nlist *p = hashtab[hash(name)];
+    p = hashtab[hash(name)];
     if (!p) {
-      if ((p = malloc(sizeof(struct nlist))) == NULL)
+      if ((hashtab[hash(name)] = malloc(sizeof(struct nlist))) == NULL)
         return NULL;
+      p = hashtab[hash(name)];
     }
     else {
       while (p->next)
