@@ -74,11 +74,8 @@ struct nlist *install(char *name, char *defn)
         return NULL;
       p = p->next;
     }
-    printf("here %d\n", p!=NULL);
     p->name = strdup_(name);
     p->defn = strdup_(defn);
-    printf("here p->name = %s\n", p->name);
-    printf("here p->defn = %s\n", p->defn);
   }
   return p;
 }
@@ -139,20 +136,21 @@ int main()
   char word[MAXWORD + 1];
 
   struct nlist *p = install("GOOD", "really bad");
+  p = install("GREAT", "awfully bad");
+  p = install("GOOD", "just so so");
   if (!p) {
     printf("bad alloc\n");
     return 1;
   }
-  printf("check: p->name = %s, p->defn = %s\n", p->name, p->defn);
   debug();
-  // while ((wt = getword(word, MAXWORD)) != EOF) {
-  //   if (isalpha_(word[0])) {
-  //     struct nlist *p;
-  //     if (p = lookup(word))
-  //       printf("get %s ==> %s\n", p->name, p->defn);
-  //     else
-  //       printf("get %s\n", word);
-  //   }
-  // }
+  while ((wt = getword(word, MAXWORD)) != EOF) {
+    if (isalpha_(word[0])) {
+      struct nlist *p;
+      if (p = lookup(word))
+        printf("get %s ==> %s\n", p->name, p->defn);
+      else
+        printf("get %s\n", word);
+    }
+  }
   return 0;
 }
