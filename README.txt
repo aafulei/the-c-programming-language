@@ -6,5 +6,5 @@ My solutions to the exercises in the book "The C Programming Language" (2nd edit
 4. Functions and Program Structure (14/14)
 5. Pointes and Arrays (20/20)
 6. Structures (6/6)
-7. Input and Output (3/9)
+7. Input and Output (4/9)
 8. The UNIX System Interface (0/8)
