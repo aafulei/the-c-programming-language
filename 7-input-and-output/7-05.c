@@ -138,19 +138,3 @@ int getop(char s[])
     return s[0];
   }
 }
-
-/* getch.c */
-/* get a (possibly pushed-back) character */
-int getch(void)
-{
-  return (bufp > 0) ? buf[--bufp] : getchar();
-}
-
-/* push character back on input */
-void ungetch(int c)
-{
-  if (bufp >= BUFSIZE)
-    printf("ungetch: too many characters\n");
-  else
-    buf[bufp++] = c;
-}
