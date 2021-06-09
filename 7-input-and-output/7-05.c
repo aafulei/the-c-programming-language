@@ -1,5 +1,3 @@
-// not finished
-
 /* Exercise 7-5. Rewrite the postfix calculator of Chapter 4 to use scanf
  * and/or sscanf to do the input and number conversion. */
 
@@ -8,7 +6,7 @@
 /* calc.h*/
 #include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h> /* for atof() */
+#include <assert.h>
 
 #define MAXOP   100 /* max size of operand or operator */
 #define NUMBER  '0' /* signal that a number was found */
@@ -108,39 +106,37 @@ double pop(void)
 
 /* getop.c */
 /* getop: get next character or numeric operand */
+
+// 1. ignore whitespaces
+// 2. if next is + - * / return c
+// 3. if next is a number, fill s with string version of number, return NUMBER
+int cpeek( FILE* fp)
+{
+    int ca = getc(fp);
+    ungetc(ca,fp);
+    return ca;
+}
+
+// CHANGE
 int getop(char s[])
 {
-  int i, c;
-
-  while ((s[0] = c = getch()) == ' ' || c == '\t')
-    ;
-  s[1] = '\0';
-  /* not a number */
-  if (!isdigit(c) && c != '.' && c != '-')
+  int c;
+  if ((c = cpeek(stdin)) == '\n' || c == EOF) {
+    getchar();
     return c;
-  i = 0;
-  if (c == '-')
-    /* negative number */
-    if (isdigit(c = getch()) || c == '.')
-      s[++i] = c;
-    /* minus sign */
-    else {
-      if (c != EOF)
-        ungetch(c);
-      return '-';
-    }
-  /* integral part */
-  if (isdigit(c))
-    while (isdigit(s[++i] = c = getch()))
-      ;
-  /* fractional part */
-  if (c == '.')
-    while (isdigit(s[++i] = c = getch()))
-      ;
-  s[i] = '\0';
-  if (c != EOF)
-    ungetch(c);
-  return NUMBER;
+  }
+  double num;
+  int scanf_res = scanf("%s", s);
+  assert(scanf_res);
+  // printf("got s = %s\n", s);
+  int sscanf_res = sscanf(s, "%lf", &num);
+  // printf("(%d) got num = %lf\n", sscanf_res, num);
+  if (sscanf_res) {
+    return NUMBER;
+  }
+  else {
+    return s[0];
+  }
 }
 
 /* getch.c */
