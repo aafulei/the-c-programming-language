@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MAXLINE 1000
+
 int fgetline(FILE *fp, char *line, int lim)
 {
   int c, n = 0;
@@ -32,12 +34,12 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-  char line1[1000], line2[1000];
+  char line1[MAXLINE], line2[MAXLINE];
   int res1, res2, lineno = 0;
   while (1) {
     ++lineno;
-    res1 = fgetline(fp1, line1, 1000) == EOF;
-    res2 = fgetline(fp2, line2, 1000) == EOF;
+    res1 = fgetline(fp1, line1, MAXLINE) == EOF;
+    res2 = fgetline(fp2, line2, MAXLINE) == EOF;
     switch (res1 + 2 * res2) {
       case 0:
         if (strcmp(line1, line2) != 0) {
