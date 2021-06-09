@@ -3,6 +3,8 @@
  * the standard input. Should the file name be printed when a matching line is
  * found? */
 
+/* Answer: Yes. Why not? */
+
 #include <stdio.h>
 #include <string.h>
 
