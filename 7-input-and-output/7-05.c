@@ -104,19 +104,23 @@ double pop(void)
   }
 }
 
+// eat all blanks and tabs, peek a non-blank-non-tab char
+int cpeek( FILE* fp)
+{
+    int ca;
+
+    while ((ca = getc(fp)) == ' ' || ca == '\t')
+      /*empty*/;
+    ungetc(ca, fp);
+    return ca;
+}
+
 /* getop.c */
 /* getop: get next character or numeric operand */
 
 // 1. ignore whitespaces
 // 2. if next is + - * / return c
 // 3. if next is a number, fill s with string version of number, return NUMBER
-int cpeek( FILE* fp)
-{
-    int ca = getc(fp);
-    ungetc(ca,fp);
-    return ca;
-}
-
 // CHANGE
 int getop(char s[])
 {
