@@ -33,31 +33,19 @@ int main(int argc, char *argv[])
     fprintf(stderr, "cannot open %s\n", argv[2]);
     return 1;
   }
-
   char line1[MAXLINE], line2[MAXLINE];
   int res1, res2, lineno = 0;
-  while (1) {
+  do {
     ++lineno;
-    res1 = fgetline(fp1, line1, MAXLINE) == EOF;
-    res2 = fgetline(fp2, line2, MAXLINE) == EOF;
-    switch (res1 + 2 * res2) {
-      case 0:
-        if (strcmp(line1, line2) != 0) {
-          printf("%s:%d: %s\n", argv[1], lineno, line1);
-          printf("%s:%d: %s\n", argv[2], lineno, line2);
-          return 0;
-        }
-        else
-          continue;
-      case 1:
-        printf("%s:%d: %s\n", argv[2], lineno, line2);
-        return 0;
-      case 2:
-        printf("%s:%d: %s\n", argv[1], lineno, line1);
-        return 0;
-      case 3:
-        return 0;
-    }
+    res1 = fgetline(fp1, line1, MAXLINE) != EOF;
+    res2 = fgetline(fp2, line2, MAXLINE) != EOF;
   }
+  while (res1 && res2 && strcmp(line1, line2) == 0);
+  if (res1)
+    printf("%s:%d: %s\n", argv[1], lineno, line1);
+  if (res2)
+    printf("%s:%d: %s\n", argv[2], lineno, line2);
+  fclose(fp1);
+  fclose(fp2);
   return 0;
 }
