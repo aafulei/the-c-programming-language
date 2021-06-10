@@ -9,8 +9,8 @@
 #define PERMS 0666 /* RW for owner, group, others */
 
 #define NULL_    0
-#define EOF      (-1)
-#define BUFSIZ   1024
+#define EOF_     (-1)
+#define BUFSIZ_  1024
 #define OPEN_MAX 20
 
 #define MAXLINE 1000
@@ -43,9 +43,9 @@ typedef struct _iobuf
 // FILE_ _iob[OPEN_MAX] = { { 0, (char *)0, (char *)0, _READ, 0 },
 //                          { 0, (char *)0, (char *)0, _WRITE, 1 },
 //                          { 0, (char *)0, (char *)0, _WRITE | _UNBUF, 2 } };
-FILE_ _iob[OPEN_MAX] = { { 0, (char *)0, (char *)0, {1,0,0,0,0}, 0 },
-                         { 0, (char *)0, (char *)0, {0,1,0,0,0}, 1 },
-                         { 0, (char *)0, (char *)0, {0,1,1,0,0}, 2 } };
+FILE_ _iob[OPEN_MAX] = { { 0, (char *)0, (char *)0, { 1, 0, 0, 0, 0 }, 0 },
+                         { 0, (char *)0, (char *)0, { 0, 1, 0, 0, 0 }, 1 },
+                         { 0, (char *)0, (char *)0, { 0, 1, 1, 0, 0 }, 2 } };
 
 int _fillbuf(FILE_ *);
 int _flushbuf(int, FILE_ *);
@@ -57,7 +57,7 @@ int _flushbuf(int, FILE_ *);
 #define getc_(p)    (--(p)->cnt >= 0 ? (unsigned char)*(p)->ptr++ : _fillbuf(p))
 #define putc_(x, p) (--(p)->cnt >= 0 ? *(p)->ptr++ = (x) : _flushbuf((x), p))
 #define getchar_()  getc_(stdin_)
-#define putchar_()  putc_((x), stdout_)
+#define putchar_(x)  putc_((x), stdout_)
 
 FILE_ *fopen_(char *name, char *mode)
 {
@@ -99,12 +99,12 @@ int _fillbuf(FILE_ *fp)
   int bufsize;
   // if ((fp->flag & (_READ | _EOF | _ERR)) != _READ)
   if (!(fp->flag.is_read && !fp->flag.is_eof && !fp->flag.is_err))
-    return EOF;
-  // bufsize = (fp->flag & _UNBUF) ? 1 : BUFSIZ;
-  bufsize = fp->flag.is_unbuf ? 1 : BUFSIZ;
+    return EOF_;
+  // bufsize = (fp->flag & _UNBUF) ? 1 : BUFSIZ_;
+  bufsize = fp->flag.is_unbuf ? 1 : BUFSIZ_;
   if (fp->base == NULL_)
     if ((fp->base = (char *)malloc(bufsize)) == NULL_)
-      return EOF;
+      return EOF_;
   fp->ptr = fp->base;
   fp->cnt = read(fp->fd, fp->ptr, bufsize);
   if (--fp->cnt < 0) {
@@ -117,7 +117,7 @@ int _fillbuf(FILE_ *fp)
       fp->flag.is_err = 1;
     }
     fp->cnt = 0;
-    return EOF;
+    return EOF_;
   }
   return (unsigned char)*fp->ptr++;
 }
@@ -125,7 +125,7 @@ int _fillbuf(FILE_ *fp)
 int fgetline(FILE_ *fp, char *line, int lim)
 {
   int c, n = 0;
-  while ((c = getc_(fp)) != EOF && c != '\n') {
+  while ((c = getc_(fp)) != EOF_ && c != '\n') {
     if (n++ < lim) {
       *line++ = c;
     }
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     return 1;
   }
   char line[MAXLINE];
-  while (fgetline(fp, line, MAXLINE) != EOF) {
+  while (fgetline(fp, line, MAXLINE) != EOF_) {
     printf("%s\n", line);
   }
 
