@@ -1,71 +1,77 @@
-// doesn't work
-
 /* Exercise 8-2. Rewrite fopen and _fillbuf with fields instead of explicit bit
  * operations. Compare code size and execution speed. */
 
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define PERMS 0666 /* RW for owner, group, others */
 
-#define NULL     0
+#define NULL_    0
 #define EOF      (-1)
 #define BUFSIZ   1024
 #define OPEN_MAX 20
 
+#define MAXLINE 1000
+
+enum _flags { _READ = 01, _WRITE = 02, _UNBUF = 04, _EOF = 010, _ERR = 020 };
+
+typedef struct _flag_s
+{
+  unsigned is_read  : 1;
+  unsigned is_write : 1;
+  unsigned is_unbuf : 1;
+  unsigned is_eof   : 1;
+  unsigned is_err   : 1;
+} FLAG;
+
 typedef struct _iobuf
 {
-  int cnt;    /* characters left */
-  char *ptr;  /* next character position */
-  char *base; /* location of buffer */
-  int flag;   /* mode of file access */
-  int fd;     /* file descriptor */
-} FILE;
+  int cnt;    // characters left
+  char *ptr;  // next character position
+  char *base; // location of buffer
+  // int flag;   // mode of file access
+  FLAG flag;
+  int fd; // file descriptor
+} FILE_;
 
-extern FILE _iob[OPEN_MAX];
+#define stdin_  (&_iob[0])
+#define stdout_ (&_iob[1])
+#define stderr_ (&_iob[2])
 
-FILE _iob[OPEN_MAX]
-    = { /* stdin, stdout, stderr */ { 0, (char *)0, (char *)0, _READ, 0 },
-        { 0, (char *)0, (char *)0, _WRITE, 1 },
-        { 0, (char *)0, (char *)0, _WRITE, | _UNBUF, 2 } };
+// FILE_ _iob[OPEN_MAX] = { { 0, (char *)0, (char *)0, _READ, 0 },
+//                          { 0, (char *)0, (char *)0, _WRITE, 1 },
+//                          { 0, (char *)0, (char *)0, _WRITE | _UNBUF, 2 } };
+FILE_ _iob[OPEN_MAX] = { { 0, (char *)0, (char *)0, {1,0,0,0,0}, 0 },
+                         { 0, (char *)0, (char *)0, {0,1,0,0,0}, 1 },
+                         { 0, (char *)0, (char *)0, {0,1,1,0,0}, 2 } };
 
-#define stdin  (&_iob[0])
-#define stdout (&_iob[1])
-#define stderr (&_iob[2])
+int _fillbuf(FILE_ *);
+int _flushbuf(int, FILE_ *);
 
-enum _flags
-{
-  _READ = 01,
-  _WRITE = 02,
-  _UNBUF = 04,
-  _EOF = 010,
-  _ERR = 020
-};
-
-int _fillbuf(FILE *);
-int _flushbuf(int, FILE *);
-
-#define feof(p)   (((p)->flag & _EOF) != 0)
-#define ferror(p) (((p)->flag & _ERR) != 0)
+#define feof(p)   ((p)->flag.is_eof)
+#define ferror(p) ((p)->flag.is_err)
 #define fileno(p) ((p)->fd)
 
-#define getc(p)    (--(p)->cnt >= 0 ? (unsigned char)*(p)->ptr++ : _fillbuf(p))
-#define putc(x, p) (--(p)->cnt >= 0 ? *(p)->ptr++ = (x) : _flushbuf((x), p))
-#define getchar()  getc(stdin)
-#define putchar()  putc((x), stdout)
+#define getc_(p)    (--(p)->cnt >= 0 ? (unsigned char)*(p)->ptr++ : _fillbuf(p))
+#define putc_(x, p) (--(p)->cnt >= 0 ? *(p)->ptr++ = (x) : _flushbuf((x), p))
+#define getchar_()  getc_(stdin_)
+#define putchar_()  putc_((x), stdout_)
 
-FILE *fopen(char *name, char *mode)
+FILE_ *fopen_(char *name, char *mode)
 {
   int fd;
-  FILE *fp;
+  FILE_ *fp;
   if (*mode != 'r' && *mode != 'w' && *mode != 'a')
-    return NULL;
-  for (fp = _iob; fp < _iob + OPEN_MAX; fp++)
-    if ((fp->flag & (_READ | _WRITE)) == 0)
-      break;                 /* found free slot */
-  if (fp >= _iob + OPEN_MAX) /* no free slots */
-    return NULL;
+    return NULL_;
+  for (fp = _iob; fp < _iob + OPEN_MAX; fp++) {
+    // if ((fp->flag & (_READ | _WRITE)) == 0)
+    if (!fp->flag.is_read && !fp->flag.is_write)
+      break;
+  }
+  if (fp >= _iob + OPEN_MAX)
+    return NULL_;
   if (*mode == 'w')
     fd = creat(name, PERMS);
   else if (*mode == 'a') {
@@ -75,35 +81,74 @@ FILE *fopen(char *name, char *mode)
   }
   else
     fd = open(name, O_RDONLY, 0);
-  if (fd == -1) /* couldn't access name */
-    return NULL;
+  if (fd == -1)
+    return NULL_;
   fp->fd = fd;
   fp->cnt = 0;
-  fp->base = NULL;
-  fp->flag = (*mode == 'r') ? _READ : _WRITE;
+  fp->base = NULL_;
+  // fp->flag = (*mode == 'r') ? _READ : _WRITE;
+  if (*mode == 'r')
+    fp->flag.is_read = 1;
+  else
+    fp->flag.is_write = 1;
   return fp;
 }
 
-int _fillbuf(FILE *fp)
+int _fillbuf(FILE_ *fp)
 {
   int bufsize;
-  if ((fp->flag & (_READ | _EOF_ERR)) != _READ)
+  // if ((fp->flag & (_READ | _EOF | _ERR)) != _READ)
+  if (!(fp->flag.is_read && !fp->flag.is_eof && !fp->flag.is_err))
     return EOF;
-  bufsize = (fp->flag & _UNBUF) ? 1 : BUFSIZ;
-  if (fp->base == NULL)
-    if ((fp->base = (char *)malloc(bufsize)) == NULL)
+  // bufsize = (fp->flag & _UNBUF) ? 1 : BUFSIZ;
+  bufsize = fp->flag.is_unbuf ? 1 : BUFSIZ;
+  if (fp->base == NULL_)
+    if ((fp->base = (char *)malloc(bufsize)) == NULL_)
       return EOF;
   fp->ptr = fp->base;
   fp->cnt = read(fp->fd, fp->ptr, bufsize);
   if (--fp->cnt < 0) {
-    if (fp->cnt == -1)
-      fp->flag |= _EOF;
-    else
-      fp->flag |= _ERR;
+    if (fp->cnt == -1) {
+      // fp->flag |= _EOF;
+      fp->flag.is_eof = 1;
+    }
+    else {
+      // fp->flag |= _ERR;
+      fp->flag.is_err = 1;
+    }
     fp->cnt = 0;
     return EOF;
   }
   return (unsigned char)*fp->ptr++;
 }
 
-int main() {}
+int fgetline(FILE_ *fp, char *line, int lim)
+{
+  int c, n = 0;
+  while ((c = getc_(fp)) != EOF && c != '\n') {
+    if (n++ < lim) {
+      *line++ = c;
+    }
+  }
+  *line = '\0';
+  return c;
+}
+
+int main(int argc, char *argv[])
+{
+  if (argc != 2) {
+    fprintf(stderr, "usage: %s file\n", argv[0]);
+    return 1;
+  }
+  FILE_ *fp;
+  if ((fp = fopen_(argv[1], "r")) == NULL_) {
+    fprintf(stderr, "cannot open %s\n", argv[1]);
+    return 1;
+  }
+  char line[MAXLINE];
+  while (fgetline(fp, line, MAXLINE) != EOF) {
+    printf("%s\n", line);
+  }
+
+  return 0;
+}
