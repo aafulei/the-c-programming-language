@@ -209,5 +209,6 @@ int main(int argc, char *argv[])
     putchar_(c);
   }
   _flushbuf('\0', stdout_);
+  fclose_(fp);
   return 0;
 }
