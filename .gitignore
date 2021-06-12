@@ -6,3 +6,4 @@ trash*
 *.exe
 *.out
 *.tmp
+*.dSYM
