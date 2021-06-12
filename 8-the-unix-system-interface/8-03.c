@@ -1,5 +1,3 @@
-// need better error handling
-
 /* Exercise 8-3. Design and write _flushbuf, fflush, and fclose. */
 
 #include <fcntl.h>
