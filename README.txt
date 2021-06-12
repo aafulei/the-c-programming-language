@@ -7,4 +7,4 @@ My solutions to the exercises in the book "The C Programming Language" (2nd edit
 5. Pointes and Arrays (20/20)
 6. Structures (6/6)
 7. Input and Output (9/9)
-8. The UNIX System Interface (6/8)
+8. The UNIX System Interface (7/8)
