@@ -11,7 +11,7 @@ My solutions to the exercises in the book "The C Programming Language, 2nd Editi
 
 And, the meat of the book, in my own words --
 
-- binary search
-- quick sort
-- memory allocator (malloc)
-- recursive descent parser (dcl)
+- bsearch: binary search
+- dcl: a recursive descent parser
+- malloc: a memory allocator
+- qsort: quick sort
