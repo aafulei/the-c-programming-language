@@ -8,3 +8,10 @@ My solutions to the exercises in the book "The C Programming Language, 2nd Editi
 6. Structures (6/6)
 7. Input and Output (9/9)
 8. The UNIX System Interface (8/8)
+
+And, the meat of the book, in my own words --
+
+- binary search
+- quick sort
+- memory allocator (malloc)
+- recursive descent parser (dcl)
