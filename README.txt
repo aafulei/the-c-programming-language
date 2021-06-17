@@ -9,9 +9,9 @@ My solutions to the exercises in the book "The C Programming Language, 2nd Editi
 7. Input and Output (9/9)
 8. The UNIX System Interface (8/8)
 
-And, the meat of the book, in my own words --
+And, my own implementation of the meat of the book.
 
-- bsearch: binary search
-- dcl: a recursive descent parser
-- malloc: a memory allocator
-- qsort: quick sort
+- bsearch     binary search
+- dcl         recursive descent parser
+- malloc      memory allocator
+- qsort       quick sort
