@@ -4,13 +4,13 @@
 #include <unistd.h>
 
 #define BUFSIZ_  10
-#define EOF_     (-1)
+#define EOF_     -1
 #define MAXLINE  1000
 #define NULL_    0
 #define MAXOPEN 20
 #define PERMS    0666
 
-enum _flags { READ_ = 01, WRITE_ = 02, UNBUF_ = 04, EOF_ = 010, ERR_ = 020 };
+enum _flags { READ_FLAG = 01, WRITE_FLAG = 02, UNBUF_FLAG = 04, EOF_FLAG = 010, ERR_FLAG = 020 };
 typedef struct _iobuf
 {
   int cnt;
@@ -19,9 +19,9 @@ typedef struct _iobuf
   int flag;
   int fd;
 } FILE_;
-FILE_ _iob[MAXOPEN] = { { 0, NULL_, NULL_, READ_, 0 },
-                         { 0, NULL_, NULL_, WRITE_, 1 },
-                         { 0, NULL_, NULL_, WRITE_ | UNBUF_, 2 } };
+FILE_ _iob[MAXOPEN] = { { 0, NULL_, NULL_, READ_FLAG, 0 },
+                         { 0, NULL_, NULL_, WRITE_FLAG, 1 },
+                         { 0, NULL_, NULL_, WRITE_FLAG | UNBUF_FLAG, 2 } };
 #define stdin_  (&_iob[0])
 #define stdout_ (&_iob[1])
 #define stderr_ (&_iob[2])
@@ -36,8 +36,7 @@ int fflush_(FILE_ *fp);
 #define ferror(p) ((p)->flag.is_err)
 #define fileno(p) ((p)->fd)
 
-// #define getc_(p)    (--(p)->cnt >= 0 ? (unsigned char)*(p)->ptr++ : _fillbuf(p))
-#define getc_(p) ((fp)->cnt ? (--(fp)->cnt, (unsigned char)*(fp)->ptr++) : _refill(fp))
+#define getc_(p) (((fp)->cnt ? 0 : _refill(fp)), ((fp)->flag & (EOF_FLAG | ERR_FLAG) ? EOF_ : (--(fp)->cnt, (unsigned char)*(fp)->ptr++)))
 #define putc_(x, p) (--(p)->cnt >= 0 ? *(p)->ptr++ = (x) : _flushbuf((x), p))
 #define getchar_()  getc_(stdin_)
 #define putchar_(x) putc_((x), stdout_)
@@ -92,7 +91,7 @@ FILE_ *fopen_(const char *name, const char *mode)
     return NULL_;
   // find a free slot
   for (fp = _iob; fp != _iob + MAXOPEN; ++fp) {
-    if ((fp->flag & (READ_ | WRITE_)) == 0)
+    if ((fp->flag & (READ_FLAG | WRITE_FLAG)) == 0)
       break;
   }
   // no free slots
@@ -119,7 +118,7 @@ FILE_ *fopen_(const char *name, const char *mode)
   fp->fd = fd;
   fp->cnt = 0;
   fp->base = NULL_;
-  fp->flag = (*mode == 'r') ? READ_ : WRITE_;
+  fp->flag = (*mode == 'r') ? READ_FLAG : WRITE_FLAG;
   return fp;
 }
 
@@ -149,7 +148,7 @@ void fclose_(FILE_ *fp)
     fp->base = NULL_;
   }
   fp->ptr = fp->base;
-  fp->flag &= ~(READ_ | WRITE_);
+  fp->flag &= ~(READ_FLAG | WRITE_FLAG);
   printf("(debug) fclose_()\n");
   debug(fp);
 }
@@ -169,42 +168,42 @@ void fclose_(FILE_ *fp)
 
 // ssize_t read(int fildes, void *buf, size_t nbyte);
 
-// as a return for getc_
-int _refill(FILE_ * fp)
+void _refill(FILE_ * fp)
 {
-  if ((fp->flag & (READ_ | EOF_ | ERR_)) != READ_)
-    return EOF_;
-  int bufsize = (fp->flag & UNBUF_) ? 1 : BUFSIZ_;
+  if ((fp->flag & (READ_FLAG | EOF_FLAG | ERR_FLAG)) != READ_FLAG)
+    return;
+  int bufsize = (fp->flag & UNBUF_FLAG) ? 1 : BUFSIZ_;
   // init buffer
   if (fp->base == NULL_) {
-    if ((fp->base = (char *)malloc(bufsize)) == NULL_)
-      return EOF_;
+    if ((fp->base = (char *)malloc(bufsize)) == NULL_) {
+      fp->flag |= ERR_FLAG;
+      return;
+    }
   }
+  // read from fd to buffer
   fp->ptr = fp->base;
   ssize_t rc = read(fp->fd, fp->ptr, bufsize);
   if (rc == 0) {
-    fp->flag |= EOF_;
-    return EOF_;
+    fp->flag |= EOF_FLAG;
+    fp->cnt = 0;
   }
   if (rc == -1) {
-    fp->flag |= ERR_;
-    return EOF_;
+    fp->flag |= ERR_FLAG;
+    fp->cnt = -1;
   }
-  fp->cnt = rc - 1;
-  return (unsigned char)*fp->ptr++;
+  fp->cnt = rc;
 }
-// 写到这里，下次继续
 
 // int _fillbuf(FILE_ *fp)
 // {
 //   // printf("(debug) _fillbuf()\n");
 //   int bufsize;
-//   if ((fp->flag & (READ_ | EOF_ | ERR_)) != READ_)
-//     return EOF_;
-//   bufsize = (fp->flag & UNBUF_) ? 1 : BUFSIZ_;
+//   if ((fp->flag & (READ_FLAG | EOF_FLAG | ERR_FLAG)) != READ_FLAG)
+//     return EOF_FLAG;
+//   bufsize = (fp->flag & UNBUF_FLAG) ? 1 : BUFSIZ_;
 //   if (fp->base == NULL_)
 //     if ((fp->base = (char *)malloc(bufsize)) == NULL_)
-//       return EOF_;
+//       return EOF_FLAG;
 //     else {
 //       printf("(debug) _fillbuf(): malloc success\n");
 //     }
@@ -214,13 +213,13 @@ int _refill(FILE_ * fp)
 //   // printf("(debug) _fillbuf(): fp->ptr = %s\n", fp->ptr);
 //   if (--fp->cnt < 0) {
 //     if (fp->cnt == -1) {
-//       fp->flag |= EOF_;
+//       fp->flag |= EOF_FLAG;
 //     }
 //     else {
-//       fp->flag |= ERR_;
+//       fp->flag |= ERR_FLAG;
 //     }
 //     fp->cnt = 0;
-//     return EOF_;
+//     return EOF_FLAG;
 //   }
 //   // printf("(debug) _fillbuf(): fp->ptr = %s\n", fp->ptr);
 //   int rc = (unsigned char)*fp->ptr++;
@@ -234,19 +233,19 @@ int _refill(FILE_ * fp)
 // because of definition of putc_, cnt means num of available empty slots
 int _flushbuf(int c, FILE_ *fp)
 {
-  if ((fp->flag & (WRITE_ | EOF_ | ERR_)) != WRITE_)
-    return EOF_;
-  if (fp->flag & UNBUF_) {
+  if ((fp->flag & (WRITE_FLAG | EOF_FLAG | ERR_FLAG)) != WRITE_FLAG)
+    return EOF_FLAG;
+  if (fp->flag & UNBUF_FLAG) {
     if (write(fp->fd, (unsigned char *)&c, 1) != 1) {
-      fp->flag |= ERR_;
-      return EOF_;
+      fp->flag |= ERR_FLAG;
+      return EOF_FLAG;
     }
     return c;
   }
   // printf("(debug) _flushbuf\n");
   if (fp->base == NULL_) {
     if ((fp->base = (char *)malloc(BUFSIZ_)) == NULL_)
-      return EOF_;
+      return EOF_FLAG;
     else {
       printf("(debug) _flushbuf(): malloc success\n");
     }
@@ -261,8 +260,8 @@ int _flushbuf(int c, FILE_ *fp)
   // printf("(debug) _flushbuf(): rc = %d\n", rc);
   if (rc == -1 || rc != BUFSIZ_ - fp->cnt) {
     // printf("(debug) _flushbuf(): write failure\n");
-    fp->flag |= ERR_;
-    return EOF_;
+    fp->flag |= ERR_FLAG;
+    return EOF_FLAG;
   }
   else {
     // printf("(debug) _flushbuf(): write success\n");
@@ -281,7 +280,7 @@ int fflush_(FILE_ *fp)
   int rc = 0;
   if (fp < _iob || fp >= _iob + MAXOPEN)
     return EOF;
-  if (fp->flag & WRITE_) {
+  if (fp->flag & WRITE_FLAG) {
     rc = _flushbuf('\0', fp);
   }
   return rc;
@@ -301,8 +300,7 @@ int main(int argc, char *argv[])
   printf("(debug) main(): start get\n");
   int c;
   while ((c = getc_(fp)) != EOF) {
-    // putc_(c, stderr_);
-    putchar_(c);
+    putchar(c);
   }
   _flushbuf('\0', stdout_);
   fclose_(fp);
