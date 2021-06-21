@@ -84,8 +84,8 @@ typedef struct
   int fd;
   int flag;
   char *base;
-  int cnt;
-  char *ptr;
+  int size;
+  char *next;
 } FILE_;
 
 FILE_ _iob[MAXOPEN]
@@ -112,7 +112,6 @@ FILE_ _iob[MAXOPEN]
 #define putchar_(c)  putc_((c), stdout_)
 // clang-format on
 
-
 FILE_ *fopen_(const char *name, const char *mode);
 int fflush_(FILE_ *);
 void fclose_(FILE_ *);
@@ -125,8 +124,8 @@ int _refill(FILE_ *);
 int _flush(FILE_ *);
 void _debug(FILE_ *);
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         file pointer
 // on failure         NULL_
 FILE_ *fopen_(const char *name, const char *mode)
@@ -162,14 +161,14 @@ FILE_ *fopen_(const char *name, const char *mode)
       return NULL_;
   }
   fp->fd = fd;
-  fp->cnt = 0;
+  fp->size = 0;
   fp->base = NULL_;
   fp->flag = (*mode == 'r') ? READ_FLAG : WRITE_FLAG;
   return fp;
 }
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         0
 // on partial flush   number of characters unflushed in buffer
 // on failure         EOF_
@@ -184,30 +183,30 @@ int fflush_(FILE_ *fp)
 
 void fclose_(FILE_ *fp)
 {
-  if (fp->cnt != 0)
+  if (fp->size != 0)
     fflush_(fp);
   if (fp->base != NULL_) {
     free(fp->base);
     fp->base = NULL_;
   }
-  fp->ptr = fp->base;
+  fp->next = fp->base;
   fp->flag &= ~(READ_FLAG | WRITE_FLAG);
 }
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         character (as unsigned char)
 // on failure         EOF_
 int _getc_buf(FILE_ *fp)
 {
-  if (fp->cnt == 0 && _refill(fp) == EOF_)
+  if (fp->size == 0 && _refill(fp) == EOF_)
     return EOF_;
-  --fp->cnt;
-  return (unsigned char)*fp->ptr++;
+  --fp->size;
+  return (unsigned char)*fp->next++;
 }
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         character (as unsigned char)
 // on failure         EOF_
 int _getc_unbuf(FILE_ *fp)
@@ -225,8 +224,8 @@ int _getc_unbuf(FILE_ *fp)
   return (unsigned char)c;
 }
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         character (as unsigned char)
 // on failure         EOF_
 int _putc_unbuf(char c, FILE_ *fp)
@@ -238,20 +237,25 @@ int _putc_unbuf(char c, FILE_ *fp)
   return (unsigned char)c;
 }
 
-// return value
-// ------------
+// return values
+// -------------
 // on success         character (as unsigned char)
 // on failure         EOF_
 int _putc_buf(char c, FILE_ *fp)
 {
-  if (fp->cnt == 0 && _flush(fp) == EOF_)
+  if (fp->size == 0 && _flush(fp) == EOF_)
     return EOF_;
-  --fp->cnt;
-  return (unsigned char)(*fp->ptr++ = c);
+  --fp->size;
+  return (unsigned char)(*fp->next++ = c);
 }
 
-// return value
-// ------------
+// description
+// -----------
+// Refill buffer once by calling system read(). It's users' responsibility to
+// make sure there's nothing in the buffer before calling refill().
+//
+// return values
+// -------------
 // on success         0
 // on failure         EOF_
 int _refill(FILE_ *fp)
@@ -264,7 +268,7 @@ int _refill(FILE_ *fp)
     return EOF_;
   }
   // read from fd to buffer
-  fp->ptr = fp->base;
+  fp->next = fp->base;
   ssize_t rc = read(fp->fd, fp->base, BUFSIZ_);
   if (rc <= 0) {
     // read error
@@ -273,25 +277,30 @@ int _refill(FILE_ *fp)
     // read eof
     else
       fp->flag |= EOF_FLAG;
-    fp->cnt = 0;
+    fp->size = 0;
     return EOF_;
   }
   // read success
   else {
-    fp->cnt = rc;
+    fp->size = rc;
     return 0;
   }
 }
 
-// return value
-// ------------
+// description
+// -----------
+// Flush buffer once by calling system write(). On partial flush, flush() will
+// properly adjust buffer.
+//
+// return values
+// -------------
 // on success         0
 // on partial flush   number of characters unflushed in buffer
 // on failure         EOF_
 //
 // note
 // ----
-// cnt is num of available empty slots
+// size is num of available empty slots
 int _flush(FILE_ *fp)
 {
   if ((fp->flag & (WRITE_FLAG | UNBUF_FLAG | EOF_FLAG | ERR_FLAG))
@@ -304,17 +313,17 @@ int _flush(FILE_ *fp)
       fp->flag |= ERR_FLAG;
       return EOF_;
     }
-    fp->cnt = BUFSIZ_;
+    fp->size = BUFSIZ_;
   }
   // write from buffer to fd
   else {
-    ssize_t rc = write(fp->fd, fp->base, BUFSIZ_ - fp->cnt);
-    // in theory write never returns 0, it either returns a positive or -1
+    ssize_t rc = write(fp->fd, fp->base, BUFSIZ_ - fp->size);
+    // in theory write() never returns 0 - it either returns n > 0 or -1
     if (rc == -1 || rc == 0) {
       fp->flag |= ERR_FLAG;
       return EOF_;
     }
-    rest = BUFSIZ_ - fp->cnt - rc;
+    rest = BUFSIZ_ - fp->size - rc;
     if (rest) {
       // move memory to fix buffer
       char *p = fp->base;
@@ -323,9 +332,9 @@ int _flush(FILE_ *fp)
       while (n-- > 0)
         *p++ = *q++;
     }
-    fp->cnt += rc;
+    fp->size += rc;
   }
-  fp->ptr = fp->base;
+  fp->next = fp->base;
   return rest;
 }
 
@@ -334,8 +343,8 @@ void _debug(FILE_ *fp)
   fprintf(stderr, "(debug) fp->fd = %d\n", fp->fd);
   fprintf(stderr, "(debug) fp->flag = 0x%x\n", fp->flag);
   fprintf(stderr, "(debug) fp->base = %p\n", fp->base);
-  fprintf(stderr, "(debug) fp->ptr = %p\n", fp->ptr);
-  fprintf(stderr, "(debug) fp->cnt = %d\n", fp->cnt);
+  fprintf(stderr, "(debug) fp->next = %p\n", fp->next);
+  fprintf(stderr, "(debug) fp->size = %d\n", fp->size);
 }
 
 int main(int argc, char *argv[])
