@@ -13,5 +13,6 @@ And my own implementation of the meat of the book.
 
 - bsearch     binary search
 - dcl         recursive descent parser
+- fopen       buffered file functions in <stdio.h>
 - malloc      memory allocator
 - qsort       quick sort
